@@ -1,0 +1,289 @@
+---
+title: "ERGM/maps/spatial interaction function (SIF) update"
+author: "kira"
+output: 
+  html_document:
+     toc: true
+     theme: cerulean
+     highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.width=9, fig.height=8
+                      #,results="asis"
+                      )
+
+library(tidyverse)
+library(sf)
+library(statnet)
+library(igraph)
+library(tidygraph)
+drop.dir <- Sys.getenv("drop_dir")
+ergm.dir <-
+  paste0(drop.dir,
+         "graphs-and-ergms/")
+
+cur.dir <- "R/SIF & mapping - mkdown & analysis dev"
+
+devtools::load_all()
+
+# get hwy data for visuals & transform to node crs
+hwy.dir <-
+  paste0(drop.dir, "shapefiles/nhpn/")
+  #"/scratch/gpfs/km31/other-local-data/National_Highway_Planning_Network-shp/"
+nhpn <-
+  st_read(paste0(hwy.dir,
+                 "National_Highway_Planning_Network.shp"
+  ))
+nhpn <- nhpn %>% divM::conic.transform()
+
+# select city -------------------------------------------------------------
+
+city.str <-
+  "19700" #philly
+#"24701" # st louis
+(tmpr <- divM::get.region.identifiers(cz = city.str))
+
+
+# load prepped graphs -----------------------------------------------------
+
+# at cz & place levels
+czdir <- paste0(ergm.dir, "cz-graphs/")
+plcdir <- paste0(ergm.dir, "plc-graphs/")
+
+list.files(czdir)
+list.files(plcdir)
+czgh <- list.files(czdir, pattern = city.str, full.names = T) %>% readRDS()
+plcgh <- list.files(plcdir, pattern = city.str, full.names = T) %>% readRDS()
+
+
+# little additions --------------------------------------------------------
+
+# i had formed without trimming by population, just to allow max flexibility
+# later
+trim.pop <- function(gh, pop.floor = 500){
+  gh %>%
+    activate("nodes") %>%
+    filter(pop > pop.floor)}
+
+plcgh <- plcgh %>% trim.pop
+czgh <- czgh %>% trim.pop
+# reattach geois
+plcgh <- plcgh %>% spatialize.nodes()
+czgh <- czgh %>% spatialize.nodes()
+```
+
+# Intro
+
+This markdown shows how code to replicate some of the spatial analysis from other "network geography" work I've seen, most particularly the Daraganova 2012 paper and the "Spatial Modeling of Social Networks" methodology book chapter by Butts and Acton (2011).
+
+It also shows some updated maps and an experiment with mapping by "spatial scale," or different distance levels. It uses Philadelphia as a sample area.
+
+# Maps
+
+Updated maps with water areas and county lines.
+
+```{r maps}
+
+## Plc plot
+Wrapper_make.graph.map(plcgh,
+                          tie.str.floor = 3e-3,
+                          flow.colm = "binned.tie.strength"
+                          ,trim2plc = T
+                          ,n_breaks = 3
+                          ,digits = 5)
+
+```
+
+
+# Spatial analysis
+
+This is done at the CZ level (r)
+
+## setup
+
+I make explicit spatial objects for the network nodes (tract centroids) and edges (lines between them). I get trip approximate distances from the line lengths.
+
+I get the distribution of ties over space, but following the papers referenced above I do "relative binned frequencies" rather than a straightforward distribution. For this, I look at the distribution of flows by distance threshold, *relative* to the distribution of cross tract distances. 
+
+
+```{r spatial.setup}
+
+# do analysis for cz
+gh <- czgh
+
+# setup spatial nodes + edges ---------------------------------------------
+
+# spatial nodes
+sfn <- gh %>% get_nodes() %>% st_sf()
+
+# spatial edges
+sfe <-  gh %>%
+  activate("edges") %>%
+  sfnetworks::as_sfnetwork(., directed = T,
+                           edges_as_lines = T) %>%
+  get_edges() %>%
+  st_sf()
+
+# edge distances
+sfe$dst <- st_length(sfe$geometry)
+sfe$dst <- as.numeric(sfe$dst) / 1000 # to km
+
+# pairwise (tractxtract) distance matrix
+dst.mat <- build.pairwise.dst.matrix(sfn)
+
+# max km span between tract centroids in area
+max(dst.mat)
+
+```
+
+## binned relative frequencies
+
+```{r binned.relative.frequencies}
+
+# do spatial interaction function analysis ------------------------------------
+
+# binned relative frequencies (# of ties over distance, relative to crosswise
+# distance distribution)
+dst.freq <- relative.tie_dst.frequency(
+  sfn, sfe, dst.mat = dst.mat,
+  n.bins = 60)
+
+dst.freq %>%
+  ggplot(aes(x = dst.lvl,
+             y = avg.flow)) +
+  geom_bar(stat = "identity")
+
+# log-log'd
+dst.freq %>%
+  ggplot(aes(x = log(dst.lvl),
+             y = log(avg.flow))) +
+  geom_path()
+
+# this pattern is common for this and shows up in the Daraganova paper and all
+# the places I've looked at (both Place+CZ). It shows the the "power law"
+# distribution holds where distance < threshold, and then breaks down.
+
+#' trim to below 50 km, around when power law distribution begins breaking down
+ghT <- gh %>%
+  activate("edges") %>%
+  mutate(dst = sfe$dst) %>%
+  filter(dst < 50)
+
+dst.freq <- 
+  relative.tie_dst.frequency(
+    gh = ghT,
+    n.bins = 60)
+
+dst.freq %>%
+  ggplot(aes(x = dst.lvl,
+             y = avg.flow)) +
+  geom_bar(stat = "identity") +
+  ggtitle("binned relative frequency",
+          "distribution of trips by distance, relative to distribution of crosswise distances for all centroids")
+
+# log-log'd, with distant trips trimmed
+dst.freq %>%
+  ggplot(aes(x = log(dst.lvl),
+             y = log(avg.flow))) +
+  geom_path() +
+  ggtitle("log-log binned relative frequency", "trips above 50km are trimmed")
+
+```
+
+## Parameterizing the SIF
+
+These steps were kinda confusing to me. It looks like there are different, slightly varying ways to do this. I tried to replicate the logic in the two papers I've referenced before.
+
+I use the power law functional form for the spatial interaction function (SIF). This is also what is chosen in the two papers above, and which the analysis above suggests fits our data as well. However, power law functions need parameters. To follow the Daraganova and Butts and Acton papers, we have to do maximum-likelihood (ML) estimation for these parameters. I followed a tutorial here: https://rpubs.com/YaRrr/MLTutorial to do this in R.
+
+There seem to be other variations on power laws elsewhere in the literature, and other ways to fit the parameters implemented in R. For example, the `igraph` package has `power.law.fit`, and another package called `poweRlaw` is dedicated to fitting power law distributions, and it cites some specific literature about doing this, but both seem geared to slightly different variations of the power law form than used in the other papers.
+
+```{r sif.parameterization}
+
+# below relies on the `dst.freq` in the general environment
+param.fitting <-
+  stats::optim(par= c(1,1.7,1, 10),
+               fn = power.law.loss.fcn, hessian = T)
+
+# predicted tie probabilities, based on SIF
+dst.freq$flow.hat <-
+  divseg::power.law(dst.freq$dst.lvl,
+            param.fitting$par[1],
+            param.fitting$par[2],
+            param.fitting$par[3]
+  )
+
+dst.freq %>%
+  select(dst.lvl, avg.flow, flow.hat) %>%
+  pivot_longer(cols = contains("flow"),
+               values_to = "avg.flow") %>%
+  ggplot() +
+  geom_path(aes(color = name,
+                y = avg.flow,
+                x = dst.lvl)) +
+  ggtitle("Relative avg flows",
+          "actual vs. fitted power law")
+
+#so there's the general distribution, and we can use those estimates to
+#parameterize the SIF in the ERGM
+
+# build a "decay matrix" that has adjusted proximity for each tract-by-tract
+# combination
+decay.mat <-
+  dst.mat %>%
+  power.law(
+    param.fitting$par[1], # 1
+    param.fitting$par[2],
+    param.fitting$par[3]
+  )
+
+
+```
+
+## Run the ERGM
+
+```{r run.ergm}
+
+library(statnet)
+
+# to trim ties to save time while hashing out code
+sfe$tie.strength %>% quantile(seq(0,1,.05))
+#ghT <- ghT %>%
+#  activate("edges") %>%
+#  filter(tie.strength > 1e-3)
+
+# erg model specification
+fo <-
+  formula(
+    ergh ~ edges +
+      nodematch("int.poly", diff = FALSE) +
+      # nodematch("in.cc") +
+      edgecov(decay.mat, "proximity") +
+      nodecov("ln.pop.dens", form="sum") +
+      absdiff("perc.wh", pow=1) +
+      absdiff("perc.hsp", pow=1) +
+      absdiff("hh.median.income", pow=1)
+  )
+
+
+# switch to statnet libraries
+ergh <<- ergm.clean.n.convert(ghT)
+
+# set seed
+set.seed(1234)
+
+# run model (model was loaded into workspace; takes a while to run.)
+mo <- ergm(
+  fo,
+  response = "tie.strength",
+  reference = ~Poisson)
+
+mo
+summary(mo)
+
+```
+
+
+

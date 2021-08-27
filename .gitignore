@@ -59,16 +59,17 @@ vignettes/*.pdf
 .*.R
 
 # .scratch folders
-.scratch.*/
-.older.*/
+.scratch*/
+.old*/
 
 # notes and other..
 *.docx
 *.tmp
 
-#pictures
+#pictures & large output
 *.png
 *.tiff
+*.zip
 
 # scratch scripts
 .scratch.R
