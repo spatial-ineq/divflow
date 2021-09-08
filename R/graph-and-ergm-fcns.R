@@ -1,185 +1,317 @@
 
-# prep data fcns ---------------------------------------------------------------
+
+# setting up graphs -------------------------------------------------------------
 
 
-
-
-#' bundle.divseg.cts
+#' sfx2sfg
 #'
-#' Bundles data from a variety of sources for a given cz/cbsa. Data will include:
+#' From a given `sf` object, get correspondence with commuting zones, and load all
+#' safegraph data for trips with origins at those commuting zones. For now, just done
+#' for annual, but we could make this monthly. If you want to start with just CZs,
+#' just use sfg.seg::read.sfg.CZs.
 #'
-#' `ctd` - prepped in divseg; all control variables and incoming/outgoing aggregated
-#' flows by demographic characteristics
+#' @param eligible.sf an sf object within bounds of which to load all flows.
 #'
-#' `divc` - preppedin divM; measures of "dividedness"; whether tracts are across a
-#' division from one another
-#'
-#' & tract centroid geometries retrieved with `tigris` and prepped with `sf`
-#'
-#' @inheritParams get.btwn.tract.dividedness
-#' @inheritDotParams get.btwn.tract.dividedness
-#' @inheritDotParams get.divseg.prepped
-#'
-bundle.divseg.cts <- function(region.ids,
-                              add.centroid.geos = F,
-                              ddir = Sys.getenv("drop_dir"),
-                              ...) {
+#' @export sfx2sfg
+sfx2sfg <- function( eligible.sf
+                     ,min.flows = 10
+                     ,tracts.or.groups = c('ct', 'bg')
+                     ,trim.loops = T
+                     ,year= 2019
+                     ,base.dir = Sys.getenv('drop_dir')
+                     ,sfg.dir = 'sfg-processed/orig_dest_annual/') {
 
-  # get tract-level sfg/seg data
-  ctd <- get.divseg.prepped("ct", ...)
+  requireNamespace('sfg.seg')
+  requireNamespace('geox')
 
-  # add perc.acres.sfz
-  ctd <- ctd %>% rename(perc.acres.sfz = acres_perc_sfr)
+  cos <- tigris::counties(year = year)
+  cos <- cos %>% st_transform(st_crs(eligible.sf))
 
-  # population per sq km
-  ctd$pop.dens <- with(ctd, pop / aland)
+  ovcos <- st_crop(cos
+                   ,eligible.sf)
 
-  # get tract/btwn-tract division measures
-  divc <- get.btwn.tract.dividedness(region.ids,
-                                     ddir, ...)
+  czs2load <-
+    geox::rx %>%
+    filter(countyfp %in% ovcos$GEOID)
 
-  # join all attributes
-  out <- left_join(divc,
-                     ctd)
+  czs2load <- unique(czs2load$cz)
 
-  # port in geographies if appropriate
-  if(add.centroid.geos) {
-    require(sf)
+  sfg <- sfg.seg::read.sfg.CZs(czs2load
+                               ,sfg.dir =
+                                 paste0( base.dir
+                                         ,sfg.dir)
+  )
+  sfg <- sfg %>%
+    filter(n >= min.flows)
 
-    ctsf <- divM::tracts.from.region(region.ids) %>% select(geoid)
-    ctsf <- ctsf %>% divM::conic.transform()
-    ctrs <- st_centroid(ctsf)
+  # filter to trips starting and ending in overlapping CZs (not just starting there)
+  sfg <- sfg %>%
+    geox::geosubset(c('origin', 'dest')
+                    ,cz = czs2load)
 
-    out <- left_join(out, ctrs)
-  }
-  return(out)
+
+  # aggregate to tracts if appropriate
+  # note this has to be done before trimming loops
+  if(tracts.or.groups[1] == 'ct')
+    sfg <- sfg.seg::cbg.flows2tracts(sfg)
+
+  # trim loops
+  if(trim.loops)
+    sfg <- sfg %>%
+    filter(origin != dest)
+
+  return(sfg)
 }
 
 
-#' setup.od.as.network
+#' sfg2gh
 #'
-#' Pulls origin-destination flows, estimated from safegraph data and sets up as a
-#' graph/network. Most parameters are for intermediate filters and wrapping other
-#' steps
+#' From a origin-destination data.frame representing safegraph data, turn it into a
+#' tidygraph object. Assumes `origin`, `dest`, and `n` columns. Also attaches
+#' geometry and calculates "normalized connectedness," which will be different if
+#' it's made undirected or left directed.
 #'
-#' @param cz,cbsa region to setup CT graph for (cbsa not implemented yet)
-#' @param directed Whether to return directed graph (undirected if false)
-#' @param flow.floor Because we do daily averages with annual data to get estimated
-#'   flows, there are many o-d flows < 1 (for example, about 70% of the 13 million
-#'   directed cross-tract flows in Philadelphia cz are less than 1 and 95% are less
-#'   than 3.5). Option here to filter based on a floor immediately upon loading.
-#' @param pop.floor population floor for each tract
-#' @param turn2tracts Safegraph origin-destination data is saved at block groups. If
-#'   this is true, flow counts will be aggregated to tracts by dropping the last
-#'   digit of the block group identifiers.
-#' @param add.centroid.geos Adds tract centroid geometries to node attributes. Will
-#'   only work for CZs just to avoid too much added complexity here
-#' @param round.flows the ergm models give a warning (and estimation seems to be
-#'   slowed down?) when valued edges are doubles instead of integers. Will return
-#'   integer flows unless this is false.
-#' @param drop.loops Whether or not to drop loops / intratract flows.
-#' @param dropbox.dir dropbox directory, where all the data will be pulled from.
+#' @param sfg OD dataframe
+#' @param tracts.or.groups Aggregate to census tract (ct) or leave at block group (bg)
+#' @param directed whether to leave directed or make undirected (which aggregates
+#'   trips to/from the same tracts, rather than duplicating the O-D pair for each
+#'   direction.)
 #'
-#' @return a `tidygraph` graph with nodes representing block groups or tracts and
-#'   valued edges representing flows
-#'
-setup.cts.as.network <- function(cz.id = NULL, cbsa.id = NULL,
-                                 directed = F,
-                                 flow.floor = 5,
-                                 pop.floor = 0,
-                                 add.centroid.geos = T,
-                                 turn2tracts = F,
-                                 round.flows = T,
-                                 drop.loops = T,
-                                 dropbox.dir = Sys.getenv("drop_dir"),
-                                 ...) {
+#' @export sfg2gh
+sfg2gh <- function(sfg,
+                   directed = F) {
 
-  # get identifiers for region
-  r <- divM::get.region.identifiers(cz = cz.id,
-                                    cbsa = cbsa.id)
-
-  # get sfg od data from dropbox
-
-  # they are saved by CZ, so load differently based on region type
-  # to implement CBSAs can adapt from: https://github.com/spatial-ineq/sfg.seg/blob/main/R/Della-wrapper-fcns.R
-
-  sfgdir <- paste0(dropbox.dir,
-                   "sfg-processed/orig_dest_annual/")
-
-  if( !is.null(cbsa.id) )
-    czs2load <-
-      xwalks::ctx %>%
-      select(contains("cz"),
-             contains("cbsa")) %>%
-      filter(cbsa == cbsa.id) %>%
-      distinct() %>%
-      pull(cz)
-  else
-    czs2load <-
-      cz.id
-
-  od <- sfg.seg::read.sfg.CZs(czs2load,
-                              sfgdir,
-                              year = "2019")
-  # filters and fixes
-  od <- od %>% select(origin = 1, dest = 2, n = 3, 4)
-
-  od <- od[od$n > flow.floor, ]
-
-  od <- od %>%
-    mutate(across(1:2,
-                  ~stringr::str_pad(as.character(.x),
-                                    12, "left", pad = "0")))
-
-  # trim to trips w/in cz (start and end)
-  od <- sfg.seg::geo.subset.cbgs(od,
-                                 subset.cols = c("origin", "dest"),
-                                 cz = cz.id,
-                                 cbsa = cbsa.id)
-  # turn into tracts
-  if(turn2tracts)
-    od <- sfg.seg::cbg.flows2tracts(od)
-
-  # transform to graph
-  require(igraph)
+  requireNamespace('sfg.seg')
   require(tidygraph)
 
-  gh <- tidygraph::as_tbl_graph(od,
-                                directed = directed)
+  # get flow str in dif ways based on directedness
+  if(directed) {
 
-  # get attrs
-  attrs <- bundle.divseg.cts(r,
-                             add.centroid.geos = add.centroid.geos,
-                             dropbox.dir,
-                             ...) %>%
-    pivot_wider(names_from = div.type,
-                names_prefix = "poly.id_",
-                values_from = poly.id)
+    # get straightforward %n_ij === n_ij/N_i
+    sfg <- sfg %>%
+      group_by(origin) %>%
+      mutate(total.from = sum(n)) %>%
+      group_by(dest) %>%
+      mutate(total.inc = sum(n)) %>%
+      ungroup() %>%
+      mutate(  perc.to.dest = n / total.inc
+               ,perc.from.origin = n / total.from)
 
-  # add in "city center" attribute (city center defined as largest Plc in CZ)
-  if(r$region.type == "cz")
-    attrs <- is.in.city.center(attrs, ...)
+    gh <- tidygraph::tbl_graph(
+      edges = sfg,
+      directed = directed
+    )
 
-  gh <- gh %>%
-    activate("nodes") %>%
-    left_join(attrs,
-              by = c("name" = "geoid"))
+  } else if(!directed) {
 
-  # final cleans
-  gh <- gh %>%
-    activate("nodes") %>%
-    filter(pop >= pop.floor)
+    # combine directed edges with igraph
+    gh <- igraph::graph.data.frame(sfg, directed = T) # directed is true because it describes initial data.frame
+    gh <- igraph::as.undirected(gh,
+                                mode = "collapse",
+                                edge.attr.comb = "sum")
 
-  if(round.flows)
+    gh <- tidygraph::as_tbl_graph(gh)
+    el <- gh %>%
+      activate('edges') %>%
+      as_tibble()
+
+    # gets flows between the two tracts
     gh <- gh %>%
-    activate("edges") %>%
-    mutate(n =
-             as.integer(round(n)))
+      activate('edges') %>%
+      mutate(tstr =
+               map2_dbl(from, to,
+                        ~get.normalized.undirected.connectedness(.x, .y,
+                                                                 el = el))
+      )
+  }
 
-  if(drop.loops)
+
+  return(gh)
+}
+
+
+#' spatialize.graph
+#'
+#' Spatializes a graph based on the node `name`s. Names should align with geoids for
+#' either block groups or tracts (default).
+#'
+#' @param gh a graph, as setup by `sfg2gh`
+#' @param sfx an `sf` object to crop to and use CRS from. Nodes outside the bbox of
+#'   this area will be trimmed. Defaults to Lambert conformal conic projection if
+#'   left null.
+#' @inheritParams sfg2gh
+#'
+#' @export spatialize.graph
+spatialize.graph <- function( gh
+                              ,frame.sf = NULL
+                              ,tracts.or.groups = c('ct', 'bg')
+                              ,directed = F
+                              ,year = 2019) {
+
+  # get geometries based on type
+  if(tracts.or.groups[1] == 'ct')
+    tigris.call <- tigris::tracts
+  else
+    tigris.call <- tigris::block_groups
+
+
+  eligible.ids <-
+    gh %>% activate('nodes') %>% as_tibble()
+
+  cbsf <- eligible.ids %>%
+    rename(geoid = name) %>%
+    geox::attach.geos(query_fcn = tigris.call
+                      ,year = year)
+
+  if(!is.null(frame.sf))
+    cbsf <- cbsf %>%
+    st_transform(st_crs(frame.sf)) %>%
+    st_crop(frame.sf)
+  else
+    cbsf <- cbsf %>%
+    st_transform(crs = '+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45')
+
+  # get centroids
+  ctrs <- st_centroid(cbsf)
+
+  # inner join to filter nodes out of crop distance
+  gh <- gh %>%
+    activate('nodes') %>%
+    inner_join(ctrs
+               ,by = c('name' = 'geoid'))
+
+  # spatialize edges
+  gh <- gh %>%
+    activate('edges') %>%
+    sfnetworks::as_sfnetwork(
+       directed = directed
+      ,edges_as_lines = T)
+
+  # get lengths
+  gh <- gh %>%
+    activate('edges') %>%
+    mutate(dst = st_length(geometry))
+
+  return(gh)
+}
+
+
+
+#' apply.flow.filters
+#'
+#' Apply flow filters to a graph, as generated from `sfg2gh` and spatialized with
+#' `spatialize.graph`. Crops to bounds.sf, filters by distance, total trips, and flow
+#' strength based on parameters. Note that cropping to bounds sf is done to retain
+#' edges that start outside of map area but ends within. This is done by cropping by
+#' edges, which also creates a number of unnamed/NA-named nodes, which are artifacts
+#' of nodes outside of cropping area when edges are partially inside.
+#'
+#' @inheritParams spatialize.graph
+#' @inheritParams sfg2gh
+#' @param min.str If null, filters to top quartile after other filters applied
+#'
+#' @export apply.flow.filters
+apply.flow.filters <- function(gh
+                               ,frame.sf = NULL
+                               ,directed = F
+                               ,min.tie.str = NULL
+                               ,tie.str.deciles = 5
+                               ,min.flows = 10
+                               ,max.dst = units::set_units(10, 'miles')
+) {
+
+  require(tidygraph)
+
+  sfe <- gh %>% activate('edges') %>% as_tibble()
+  if(! 'dst' %in% colnames(sfe))
+    gh <- spatialize.graph(gh)
+
+  # crop edges that are not within bounds
+  if(!is.null(frame.sf))
     gh <- gh %>%
-    activate("edges") %>%
-    filter(from != to)
+    activate('edges') %>%
+    st_crop(frame.sf)
+
+  # filter by flows & distance
+  gh <- gh %>%
+    activate('edges') %>%
+    filter(dst <= max.dst,
+           n >= min.flows)
+
+  # filter by tie strength
+  if(!is.null(min.str))
+    gh <- gh %>%
+    activate('edges') %>%
+    filter_at( vars(matches('^perc|^tstr'))
+               ,any_vars(. > min.str))
+  else
+    gh <- gh %>%
+    activate('edges') %>%
+    filter_at( vars(matches('^perc|^tstr'))
+               ,any_vars(. > # drop n quartiles
+                           quantile(.,
+                                    seq(0,1,.25))[2]))
+  return(gh)
+}
+
+
+#' setup.gh.wrapper
+#'
+#' From a `sf` object that will center graph, a buffer distance to define area around
+#' center, and a set of trimming parameters, sets up a graph as all nodes surrounding
+#' the area
+#'
+#' @inheritParams sfx2sfg
+#' @inheritParams sfg2gh
+#' @inheritParams spatialize.graph
+#' @inheritParams apply.flow.filters
+#'
+#' @export setup.gh.wrapper
+setup.gh.wrapper <- function( sfx
+                              ,map.buffer = units::set_units(5, 'miles')
+                              ,max.dst = units::set_units(5, 'miles')
+                              ,min.flows = 10
+                              ,min.str = NULL
+                              ,directed = F
+                              ,tracts.or.groups = c('ct', 'bg')
+                              ,year = 2019
+                              ,base.dir = Sys.getenv('drop_dir')
+                              ,sfg.dir = 'sfg-processed/orig_dest_annual/'
+                              ,crs = '+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45'
+) {
+
+  ctr <- sfx %>%
+    st_transform(crs) %>%
+    st_centroid()
+
+  eligible.area <- ctr %>%
+    st_buffer(map.buffer + max.dst)
+
+  frame.area <- ctr %>%
+    st_buffer(map.buffer)
+
+  sfg <- sfx2sfg(eligible.area
+                 ,min.flows = min.flows
+                 ,tracts.or.groups = tracts.or.groups
+                 ,base.dir = base.dir
+                 ,sfg.dir = sfg.dir
+                 ,year = year )
+
+  gh <- sfg2gh(sfg
+               ,directed = directed)
+
+  gh <- spatialize.graph(gh
+                         ,frame.sf = frame.area
+                         ,tracts.or.groups = tracts.or.groups
+                         ,directed = directed
+                         ,year = year)
+
+  gh <- apply.flow.filters(gh
+                           ,frame.sf = frame.area
+                           ,directed = directed
+                           ,min.str = min.str
+                           ,min.flows = min.flows
+                           ,max.dst = max.dst)
 
   return(gh)
 }
@@ -195,7 +327,6 @@ setup.cts.as.network <- function(cz.id = NULL, cbsa.id = NULL,
 #' flows into and out of each tract. Takes individual node/tract identifiers and an
 #' edgelist containing all flows in between them.
 #'
-#' ..I'd like to make this fcn faster/more efficient
 #'
 #' @param x,y node ids
 #' @param el edge list
@@ -316,210 +447,22 @@ is.in.city.center <- function(sfx, cz = NULL, filter2cc = FALSE, ...) {
 }
 
 
-# tidygraph helper fcns --------------------------------------------------------
 
+# convenience fcns -------------------------------------------------------------
 
-#' get_nodes
-#'
-#' Convenience fcn to get nodes as tibble from `tidygraph`
-#'
-#' @export get_nodes
-get_nodes <- function(tbl_grph) {
-
-  tbl_grph %>%
-    activate("nodes") %>%
+gh2nodes <- function(gh) {
+  require(tidygraph)
+  gh %>%
+    activate('nodes') %>%
     as_tibble()
 }
 
-
-#' get_edges
-#'
-#' Convenience fcn to get edges as tibble from `tidygraph`
-#'
-#' @export get_edges
-get_edges <- function(tbl_grph) {
-
-  tbl_grph %>%
-    activate("edges") %>%
+gh2edges <- function(gh) {
+  require(tidygraph)
+  gh %>%
+    activate('edges') %>%
     as_tibble()
 }
-
-
-
-
-
-
-
-# Wrapper -- prep for ERGM -------------------------------------------------
-
-
-#' Wrapper_prep4ergm
-#'
-#' Wraps all steps to load and prep data for ERGM. Warning that this function
-#' can be a little wonky across systems due to the data coming from so many
-#' different places. Parameters `dropbox.dir` should point to directory
-#' containing relevant datasets in our dropbox, including `dividedness-measures`
-#' and `sfg-processed` with O-D flows. Parameter `ddir` should point to a
-#' directory containing the prepped datasets that this package can be used to
-#' generate, as with the `glomerating-datasets` scripts.
-#'
-#' Other arguments can alter how data is prepped.
-#'
-#' @inheritDotParams setup.cts.as.network
-#' @inheritDotParams build.pairwise.dst.matrix
-#' @inheritDotParams is.in.city.center
-#' @param build.dst.mat Whether or not to build a distance matrix using
-#'   `build.pairwise.dst.matrix`. Can be false to skip this step if a model
-#'   doesn't want distance or wants to do a function of distance not
-#'   accommodated by that function yet (exponential decay; power law decay).
-#'   (Daraganova et al 2012 has some possibilities for thinking about different
-#'   "spatial interaction fcns" for spatial networks.)
-#'
-Wrapper_prep4ergm <- function(...,
-                               build.dst.mat = T) {
-
-  # browser()
-
-  # pull together data (cz/cbsa arguments passed on)
-  gh <-
-    suppressMessages(
-      setup.cts.as.network(...))
-
-  # get point geometrries for nodes & use to build distance/spw matrix
-  ctrs <- gh %>% get_nodes() %>% st_sf() %>% select(geoid = name)
-
-  if(build.dst.mat)
-    dst.mat <<- build.pairwise.dst.matrix(ctrs, ...)
-
-  # get edges and tie strength measures
-  el <- gh %>% get_edges()
-
-  gh <- gh %>%
-    activate("edges") %>%
-    mutate(tie.strength =
-             map2_dbl(el$from, el$to,
-                      ~get.normalized.undirected.connectedness(.x, .y,
-                                                               el = el))
-           )
-
- return(gh)
-}
-
-
-# running model ----------------------------------------------------------------
-
-
-
-#' tbl_graph2ERGM
-#'
-#' From a tidygraph form, coerce to statnet Network form and run an ERGM.
-#' Consolidates final steps to run ERGM after data is prepped. To be called within
-#' `Wrapper_prep.and.run.ERGM` or separately on a similarly prepped graph object.
-#'
-#' Glossary of ERGM terms here:
-#' https://cran.r-project.org/web/packages/ergm/vignettes/ergm-term-crossRef.html
-#'
-#' @param formula a formula specification for the ergm model. Names of attributes and
-#'   graph dataset in the model should match those by earlier calls in this function.
-#' @param seed random seed, for reproducability
-#' @param ... additional arguments to pass onto `ergm` call
-#'
-#' @export tbl_graph2ERGM
-tbl_graph2ERGM <- function(prepped_graph,
-                           formula,
-                           seed = 1234,
-                           ...) {
-
-  require(statnet)
-
-  # define in global env for formula access (i think another way too but this is
-  # ez)
-  ergh <<- ergm.clean.n.convert(prepped_graph)
-
-  # set seed and run
-  set.seed(seed)
-
-  mo <-
-    ergm(
-      formula,
-      response = "tie.strength",
-      reference = ~Poisson,
-      ...
-    )
-
-  return(mo)
-}
-
-
-
-# convenience functions --------------------------------------------------------
-
-
-
-#' spatialize.nodes
-#'
-#' I save prepped graphs without geometries for portability (they would sometimes get
-#' corrupted moving across systems otherwise). This re-attaches tract geometries
-#' based on name colm
-#'
-#' @param gh tidygraph object
-#' @param centroids whether to attach geometries as centroids or polygons (default
-#'   true)
-#' @param region.ids possible region identifiers as retrieved from
-#'   `divM::get.region.identifiers`. Defaults to inferring CZ from graph if left NULL
-#' @param geoid.colm string for column name that contains tract geoids in the graph
-#'   object.
-#'
-spatialize.nodes <- function(gh, centroids = T,
-                             region.ids = NULL, geoid.colm = "name"
-                             , crs = 4326) {
-
-  if(is.null(region.ids)) {
-    cz.id <- gh %>% activate("nodes") %>% pull(cz) %>% unique()
-    region.ids <- divM::get.region.identifiers(cz = cz.id)
-  }
-  ctsf <- divM::tracts.from.region(region.ids)
-  ctsf <- ctsf %>% divM::conic.transform()
-  if(centroids)
-    ctsf <- st_centroid(ctsf)
-  ctsf <- ctsf %>% st_transform(crs)
-
-  gh <- gh %>%
-    activate("nodes") %>%
-    left_join(ctsf["geoid"],
-              by = setNames("geoid", geoid.colm))
-  return(gh)
-}
-
-
-#' get_nodes
-#'
-#' Convenience fcn to get nodes as tibble from `tidygraph`
-#'
-#' @export get_nodes
-get_nodes <- function(tbl_grph) {
-
-  tbl_grph %>%
-    activate("nodes") %>%
-    as_tibble()
-}
-
-
-#' get_edges
-#'
-#' Convenience fcn to get edges as tibble from `tidygraph`
-#'
-#' @export get_edges
-get_edges <- function(tbl_grph) {
-
-  tbl_grph %>%
-    activate("edges") %>%
-    as_tibble()
-}
-
-
-
-# in progress -------------------------------------------------------------
 
 
 # resources and refernces -----------------------------------------------------------

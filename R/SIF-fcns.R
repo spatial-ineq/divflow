@@ -45,7 +45,8 @@ build.pairwise.dst.matrix <- function(sfx, decay = F, h0 = 32.2, ...) {
 #' power law
 #'
 #'
-power.law <- function(d, pb = 1, gamma = 1, alpha = 1) {
+power.law <- function(d, pb = 1, gamma = 1, alpha = 1
+                      ,...) {
   pb * (1 + alpha*d) ^ -gamma
 }
 
@@ -58,7 +59,8 @@ power.law <- function(d, pb = 1, gamma = 1, alpha = 1) {
 #' effects being dependent upon α). Where (αd)γ » 1, both variants exhibit similar
 #' behavior."
 #'
-attenuated.power.law <- function(d, pb = 1, gamma = 1, alpha = 1) {
+attenuated.power.law <- function(d, pb = 1, gamma = 1, alpha = 1
+                                 ,...) {
     pb * (1 + (alpha*d) ^ -gamma)
 }
 
@@ -67,7 +69,8 @@ attenuated.power.law <- function(d, pb = 1, gamma = 1, alpha = 1) {
 #
 # Fd(x = pb exp(–αx), α >=0 scaling param
 #
-exponential.decay <- function(d, pb = 1, alpha = 0.5) {
+exponential.decay <- function(d, pb = 1, alpha = 0.5
+                              ,...) {
   {pb * exp(-alpha * d)}
 }
 

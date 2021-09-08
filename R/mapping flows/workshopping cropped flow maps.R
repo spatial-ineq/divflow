@@ -325,6 +325,10 @@ ght %>%
 devtools::document()
 devtools::load_all()
 
+map.buffer <- units::set_units(5   , 'miles')
+max.dst <- units::set_units(5 , 'miles')
+min.flows <- 20
+
 plc <- divM::largest.plc.in.cz %>%
   filter(cz.id %in% '24701')
 
