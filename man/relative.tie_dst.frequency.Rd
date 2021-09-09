@@ -13,17 +13,17 @@ relative.tie_dst.frequency(
 )
 }
 \arguments{
-\item{sfn, sfe, gh}{Spatial nodes, spatial edges or graph object. Save load
-time by providing spatial nodes / edges; otherwise just supply graph gh.}
+\item{sfn, sfe, gh}{Spatial nodes, spatial edges or graph object. Save load time by
+providing spatial nodes / edges; otherwise just supply graph gh.}
 
 \item{n.bins}{number of distance bins}
 }
 \description{
-Gets distribution of ties relative to distribution of centroids. Because
-centroids are not a continuous distribution, this might show a more
-meaningful spatial distribution of ties.
+Gets distribution of ties relative to distribution of centroids. Because centroids
+are not an even continuous distribution, this might show a more meaningful spatial
+distribution of ties.
 }
 \details{
-Used in Daraganova 2012, referred to as  "binned relative frequency of ties
-against distance interval"
+Implements technique in Daraganova 2012, referred to as  "binned relative
+frequency of ties against distance interval"
 }

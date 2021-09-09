@@ -6,9 +6,10 @@
 \usage{
 apply.flow.filters(
   gh,
-  bounds.sf = NULL,
+  frame.sf = NULL,
   directed = F,
-  min.str = NULL,
+  min.tie.str = NULL,
+  tie.str.deciles = 5,
   min.flows = 10,
   max.dst = units::set_units(10, "miles")
 )

@@ -4,12 +4,12 @@
 \alias{get.div.layers}
 \title{get.div.layers}
 \usage{
-get.div.layers(
-  bounds.sf,
-  map.buffer = units::set_units(5, "miles"),
-  dropbox.dir = Sys.getenv("drop_dir"),
-  subdir = "shapefiles/nhpn/"
-)
+get.div.layers(bounds.sf, ...)
+}
+\arguments{
+\item{bounds.sf}{sf area that defines bbox to get division layers from.}
+
+\item{...}{NHPN directory info passed onto \code{visaux::get.NHPN}}
 }
 \description{
 Wraps visaux helpers with very specific settings for combining everything.

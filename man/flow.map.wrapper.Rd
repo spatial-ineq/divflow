@@ -8,6 +8,7 @@ flow.map.wrapper(
   sfx,
   gh = NULL,
   edge.attr = "n",
+  log.transform = T,
   map.buffer = units::set_units(5, "miles"),
   max.dst = units::set_units(5, "miles"),
   ...
@@ -31,6 +32,7 @@ direction.)}
 this area will be trimmed. Defaults to Lambert conformal conic projection if
 left null.}
     \item{\code{min.str}}{If null, filters to top quartile after other filters applied}
+    \item{\code{bounds.sf}}{sf area that defines bbox to get division layers from.}
   }}
 }
 \description{

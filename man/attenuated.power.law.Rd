@@ -4,7 +4,10 @@
 \alias{attenuated.power.law}
 \title{attenuated power law}
 \usage{
-attenuated.power.law(d, pb = 1, gamma = 1, alpha = 1)
+attenuated.power.law(d, pb = 1, gamma = 1, alpha = 1, ...)
+}
+\arguments{
+\item{d}{distance}
 }
 \description{
 "Unlike the simple power law model....the attenuated variant exhibits

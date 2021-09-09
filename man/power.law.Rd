@@ -4,7 +4,10 @@
 \alias{power.law}
 \title{power law}
 \usage{
-power.law(d, pb = 1, gamma = 1, alpha = 1)
+power.law(d, pb = 1, gamma = 1, alpha = 1, ...)
+}
+\arguments{
+\item{d}{distance}
 }
 \description{
 power law

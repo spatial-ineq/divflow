@@ -2,11 +2,12 @@
 rm(list = ls())
 require(tidyverse)
 require(sf)
+devtools::load_all()
 
 # option setting
 sf_use_s2(T)
 options(tigris_use_cache = TRUE)
-
+Sys.setenv("VROOM_SHOW_PROGRESS"="false")
 
 wdir <-
   '~/R/all sharkey geoseg work/divflow/R/creating SpWs/spWs/'
@@ -14,9 +15,7 @@ wdir <-
 
 # load a sample sfg cz ---------------------------------------------------------
 Sys.getenv('drop_dir') %>%
-  paste0()
-  list.files(pattern = 'sfg-processed/annual'
-                                      ,recursive = T)
+
 sfg.dir <-
   paste0(Sys.getenv('drop_dir'),
          'sfg-processed/orig_dest_annual/'
@@ -58,7 +57,7 @@ where.ppl.going %>% arrange(desc(visits.to))
 
 # I am still generating code for BGs so will use tracts for now
 prx.dir <- paste0(Sys.getenv('drop_dir'),
-                    'tract adjacencies+proximities/'
+                    'adjacencies+proximities/'
                   )
 prx <- prx.dir %>%
   list.files(pattern = 'adjacencies.rds$'
@@ -111,69 +110,6 @@ flwws
 
 
 
-#' get.flow.weights.within.distance
-#'
-#' Get "flow weights," i.e., proportion of visitor/visited from other tracts within
-#' distance threshold. Relies on precalculated distance matrix. Rounds to 4 digits
-#' for sparseness.
-#'
-#' @inheritParams get.dist.weighted.composite
-#' @param flow.type Whether to get weights based on all visitors to i from other
-#'   proximate areas (default); or based on all proximiate areas visited by people in
-#'   area i.
-#' @param drop.loops Whether to drop loops (where origin==destination)
-#' @param prox.col name for list-column in `spws` with all areas within distance
-#'   cutoff from each other
-#' @param flow.counts data.frame with origin/destination/estimated visits (n).
-#' @param weight.floor flow weight floor. Minimum percent of incoming/visited trips
-#'   between tracts to be included. 0.1% by default.
-#'
-#' @export get.flow.weights.within.distance
-get.flow.weights.within.distance <- function(i
-                                             ,flow.type = c('visitors', 'visiting')
-                                             ,drop.loops = T
-                                             ,prox.col =  'below.cutoff'
-                                             ,flow.counts = sfg
-                                             ,spatial.weights = spws
-                                             ,weight.floor = .001) {
-
-  flow.type <- flow.type[[1]]
-
-  # get geoids for js within distance threshold
-  j.ids <- spatial.weights  %>% filter(geoid %in% i) %>% pull(prox.col) %>% unlist()
-  # drop loops if appropriate
-  if(drop.loops)
-    flow.counts <- flow.counts %>% filter(origin != dest)
-
-  # Get either all trips from Js to I (visitors) or from I to all Js (visiting)
-  if(flow.type == 'visitors') {
-
-    js <- flow.counts %>%
-      filter(dest %in% i &
-               origin %in% j.ids)
-  } else if(flow.type == 'visiting') {
-
-    js <- flow.counts %>%
-      filter(origin %in% i &
-               dest %in% j.ids)
-  }
-
-
-  # get flow weights
-  flwws <- js %>%
-    mutate(flow.weight =
-             n / sum(n)) %>%
-    select(dest, flow.weight) %>%
-    filter(flow.weight >=
-             weight.floor)
-
-  # return as named vector
-  flwws$flow.weight %>%
-    as.vector() %>%
-    round(digits = 4) %>%
-    setNames(flwws$dest)
-}
-
 sfg
 
 get.flow.weights.within.distance(i = '34001000100'
@@ -215,7 +151,69 @@ test.geoids %>%
 # -get all geoids that are distance eligible (w/in 20 mi)
 # -use sqldf::read.csv.sql to read data eligible cbgs outside the CZ
 # -map.get.flow.weights.within.distnace
-sfg
 
 sfg
+prx
+within.range <- prx %>% filter(geoid %in% sfg$origin) %>% pull(below.cutoff) %>%
+  unlist() %>% unique()
+cos <- within.range %>% substr(1,5) %>% unique()
+czs.in.range <- geox::rx %>%
+  filter(countyfp %in% cos) %>%
+  pull(cz) %>% unique()
+
+czs.in.range <- czs.in.range %>%
+  sfg.seg::read.sfg.CZs(sfg.dir = sfg.dir, year = '2019')
+
+czs.in.range
+sfg
+
+
+
+query <- paste0('SELECT * from file where SUBSTR(origin_census_block_group,1,5) in (',
+                cos[1],
+                ')')
+
+# map through czs in range, taking
+dover.dir <- paste0(sfg.dir,
+                    '19901/2019')
+sqldf::read.csv.sql(list.files(dover.dir,full.names = T)
+                    ,
+                    sql =query)
+dover.sfg <- vroom::vroom(list.files(dover.dir,full.names = T))
+dover.sfg
+sfg.seg::read.sfg.CZs
+sfg
+sfg
 test
+
+
+
+
+# hashing out della fcn for flow-weights ---------------------------------------
+
+
+
+
+# czs <- geox::build.CZs()
+# czs
+devtools::load_all()
+rm(list = ls())
+sfg.dir <-
+  paste0(Sys.getenv('drop_dir'),
+         'sfg-processed/orig_dest_annual/'
+  )
+
+prx.dir <- paste0(Sys.getenv('drop_dir'),
+                  'adjacencies+proximities/'
+                  )
+
+spws <- prx.dir %>%
+  list.files(pattern = 'adjacencies.rds$'
+             ,full.names = T) %>%
+  read_rds()
+
+morristown.flwws <- Della.wrapper_flow.weights(cz = '00200'
+                           ,sfg.dir = sfg.dir
+                           )
+morristown.flwws[1,]$inc.flow.weights
+

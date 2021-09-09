@@ -7,10 +7,11 @@
 sfx2sfg(
   eligible.sf,
   min.flows = 10,
-  base.dir = Sys.getenv("drop_dir"),
-  sfg.dir = "sfg-processed/orig_dest_annual/",
+  tracts.or.groups = c("ct", "bg"),
+  trim.loops = T,
   year = 2019,
-  trim.loops = T
+  base.dir = Sys.getenv("drop_dir"),
+  sfg.dir = "sfg-processed/orig_dest_annual/"
 )
 }
 \arguments{
