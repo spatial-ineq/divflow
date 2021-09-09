@@ -10,7 +10,8 @@ Della.wrapper_flow.weights(
   drop.loops = T,
   weight.floor = 0.001,
   sfg.dir,
-  year = "2019"
+  year = "2019",
+  save.dir = NULL
 )
 }
 \arguments{

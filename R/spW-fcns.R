@@ -190,6 +190,7 @@ Della.wrapper_flow.weights <- function(cz
                                        ,weight.floor = .001
                                        ,sfg.dir
                                        ,year = '2019'
+                                       ,save.dir = NULL
 ) {
 
   #browser()
@@ -238,6 +239,17 @@ Della.wrapper_flow.weights <- function(cz
                  )))
 
   flwws <- flwws %>% select(geoid, matches('flow.weights'))
+
+
+  if(!is.null(save.dir)) {
+    if(!exists(save.dir))
+      dir.create(save.dir)
+
+    write_rds(flwws
+              ,file = paste0(save.dir
+                            ,as.character(cz), '-', as.character(year)
+                            ,'flow-weights.rds'))
+    }
 
   return(flwws)
 }
