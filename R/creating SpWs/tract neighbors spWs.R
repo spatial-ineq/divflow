@@ -107,32 +107,7 @@ tmp$n.nbs <- map_dbl(tmp$nbs, length)
 st_crs(ctrs)$wkt
 # for each ct, get distance from all other cts that are within threshold
 
-#' dsts.below.threshold
-#'
-#' Quick fcn with hardcoded items, including assumption of meters from crs length
-#' unit
-#'
-#' @param sfx an sf object to selectively get pairwise distances between, probably
-#'   containing point geometries.
-#' @param i row # index of given tract/centroid in `sfx`
-#' @param js list of geoids in same sf object `sfx` to get distance from
-dsts.below.threshold <- function(sfx, i, j.colm = 'nbs') {
-
-#  browser()
-  # get sf corresponding to geoids j
-  js <- pull(sfx, j.colm)[[i]]
-  geos <- sfx[sfx$geoid %in% js, ]$geometry
-
-  # get pairwise distance between i and j
-  as.vector(st_distance(sfx[i, ]
-                        , geos)) %>%
-    set_units('m') %>%
-    set_units('km') %>%
-    round(digits = 2) %>%
-    setNames(js)
-
-}
-
+# function moved to `spW-fncs`
 dsts.below.threshold(ctrs,
                      1)
 
@@ -175,32 +150,6 @@ tmp$n.below.cutoff <- map_dbl(cts$below.cutoff, length)
 
 
 # for each ct, get distance from all other cts that are within threshold
-
-#' dsts.below.threshold
-#'
-#' Quick fcn with hardcoded items, including assumption of meters from crs length
-#' unit
-#'
-#' @param sfx an sf object to selectively get pairwise distances between, probably
-#'   containing point geometries.
-#' @param i row # index of given tract/centroid in `sfx`
-#' @param js list of geoids in same sf object `sfx` to get distance from
-dsts.below.threshold <- function(sfx, i, j.colm = 'nbs') {
-
-  #  browser()
-  # get sf corresponding to geoids j
-  js <- pull(sfx, j.colm)[[i]]
-  geos <- sfx[sfx$geoid %in% js, ]$geometry
-
-  # get pairwise distance between i and j
-  as.vector(st_distance(sfx[i, ]
-                        , geos)) %>%
-    set_units('m') %>%
-    set_units('km') %>%
-    round(digits = 2) %>%
-    setNames(js)
-
-}
 
 # add below.cutoff neighbors to centroids sf
 ctrs$below.cutff <- cts$below.cutoff

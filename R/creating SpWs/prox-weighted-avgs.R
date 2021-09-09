@@ -209,74 +209,16 @@ library(units)
 # define cut-off distance
 dst.ceiling <- units::set_units(20, 'miles')
 
-#' bisq.dist2weights
-#'
-#'
-#' Uses a Bisquare transformation to turn distances to spatial weights. Transfroms by
-#' weight = (1-(ndist/H)^2)^2 for distances less than or equal to H, 0 otherwise.
-#' Mimics Bi-square option in `lctools::moransI`.
-#'
-#' @param dist distance to convert to decayed weights
-#' @param cutoff `H` in the formula, where weight is 0.
-#'
-bisq.dist2weights <- function(dist
-                              , cutoff = dst.ceiling
-                              , ... ) {
-
-  if_else( dist >= cutoff
-          ,0
-          ,(1-as.numeric(dist/cutoff)^2)^2)
-
-}
+# see distance decay / SIF fcns in SIF-fcns.R
 
 #' powerlaw.dist2weights
 devtools::load_all()
 power.law
 
-#' get.dist.weighted.composite
-#'
-#' @param i a given tract geoid
-#' @param x full ct data to subset from
-#' @param value.col column name in `x` to calculate weighted avg of adjacent tracts
-#'   for.
-#' @param weight.col column name in `x`, probably denoted population or households
-#' @param dist.decay.fcn a distance decay or proximity fcn to convert distances to
-#'   spatial weights
-#' @param dist.col string for column name in `spws` denoting distances
-#' @param spws spatial weight matrices with a geoid column and other list columns for
-#'   different spatial weights
-#' @param ... passed on to `dst.decay.fcn`
-#'
-get.dist.weighted.composite <- function(i,  x
-                             , value.col = 'value'
-                             , weight.col = 'weight'
-                             , dist.decay.fcn
-                             ,dist.col = 'dists'
-                             ,spatial.weights = spws
-                             ,...) {
 
-  # all neighbors within dists of i, based on supplied spatial weights
-  nbs <- spatial.weights %>% filter(geoid %in% i) %>% pull(dist.col)
-  # organize as tibble
-  nbs <- tibble(geoid = names(nbs[[1]])
-                ,dist.from.i = nbs[[1]] )
+# get.dist.weighted.composite fcn moved to `spW-fcns`
 
-  # combine distances and attributes; filter out loops (where i==j)
-  js <- x[x$geoid %in% nbs$geoid, ] %>%
-    left_join(nbs, by = 'geoid') %>%
-    filter(geoid != i)
 
-  # convert distance to weight w/ proximity fcn
-  js$spatial.weight <-
-    dist.decay.fcn(js$dist.from.i
-                   , ...)
-
-  # apply both spatial weight and pop or hh weight to get spatial mean
-  spu <- stats::weighted.mean(js$value
-                              ,js$weight * js$spatial.weight
-                              ,na.rm = T)
-  return(spu)
-}
 
 # split-map-bind ---------------
 

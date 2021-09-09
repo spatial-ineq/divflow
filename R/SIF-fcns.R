@@ -41,53 +41,19 @@ build.pairwise.dst.matrix <- function(sfx, decay = F, h0 = 32.2, ...) {
 
 }
 
-
-#' power law
-#'
-#'
-power.law <- function(d, pb = 1, gamma = 1, alpha = 1
-                      ,...) {
-  pb * (1 + alpha*d) ^ -gamma
-}
-
-
-#' attenuated power law
-#'
-#' "Unlike the simple power law model....the attenuated variant exhibits
-#' negative local curvature. This model thus tends to produce both a high proportion
-#' of long-range edges and a high degree of local cohesion (the scale of these
-#' effects being dependent upon α). Where (αd)γ » 1, both variants exhibit similar
-#' behavior."
-#'
-attenuated.power.law <- function(d, pb = 1, gamma = 1, alpha = 1
-                                 ,...) {
-    pb * (1 + (alpha*d) ^ -gamma)
-}
-
-
-# inverse exponential decay
-#
-# Fd(x = pb exp(–αx), α >=0 scaling param
-#
-exponential.decay <- function(d, pb = 1, alpha = 0.5
-                              ,...) {
-  {pb * exp(-alpha * d)}
-}
-
-
 # ties across distance, relative to all centroid distances ----------------
 
 #' relative.tie_dst.frequency
 #'
-#' Gets distribution of ties relative to distribution of centroids. Because
-#' centroids are not a continuous distribution, this might show a more
-#' meaningful spatial distribution of ties.
+#' Gets distribution of ties relative to distribution of centroids. Because centroids
+#' are not an even continuous distribution, this might show a more meaningful spatial
+#' distribution of ties.
 #'
-#' Used in Daraganova 2012, referred to as  "binned relative frequency of ties
-#' against distance interval"
+#' Implements technique in Daraganova 2012, referred to as  "binned relative
+#' frequency of ties against distance interval"
 #'
-#' @param sfn,sfe,gh Spatial nodes, spatial edges or graph object. Save load
-#'   time by providing spatial nodes / edges; otherwise just supply graph gh.
+#' @param sfn,sfe,gh Spatial nodes, spatial edges or graph object. Save load time by
+#'   providing spatial nodes / edges; otherwise just supply graph gh.
 #' @param n.bins number of distance bins
 #'
 #' @export relative.tie_dst.frequency
@@ -203,7 +169,8 @@ power.law.loss.fcn <- function(par) {
                         pb, gamma, alpha),
             sd = err.sigma)
 
-    # Because we don't like likelihoods of 0 (which should rarely happen), convert 0s to a very small number
+    # Because we don't like likelihoods of 0 (which should rarely happen), convert 0s
+    # to a very small number
     likelihoods[likelihoods == 0] <- .001
 
     # Now let's convert the vector of likelihoods to a summary deviance score (-2 times sub log-lik)
@@ -220,3 +187,76 @@ power.law.loss.fcn <- function(par) {
 
 
 
+# decay and SIF functions ------------------------------------------------------
+
+
+
+#' power law
+#'
+#' @param d distance
+#'
+power.law <- function(d, pb = 1, gamma = 1, alpha = 1
+                      ,...) {
+  pb * (1 + alpha*d) ^ -gamma
+}
+
+
+#' attenuated power law
+#'
+#' "Unlike the simple power law model....the attenuated variant exhibits
+#' negative local curvature. This model thus tends to produce both a high proportion
+#' of long-range edges and a high degree of local cohesion (the scale of these
+#' effects being dependent upon α). Where (αd)γ » 1, both variants exhibit similar
+#' behavior."
+#'
+#' @inheritParams power.law
+#'
+attenuated.power.law <- function(d, pb = 1, gamma = 1, alpha = 1
+                                 ,...) {
+  pb * (1 + (alpha*d) ^ -gamma)
+}
+
+
+#' inverse exponential decay
+#'
+#' Fd(x = pb exp(–αx), α >=0 scaling param
+#'
+#' @inheritParams power.law
+#'
+exponential.decay <- function(d, pb = 1, alpha = 0.5
+                              ,...) {
+  {pb * exp(-alpha * d)}
+}
+
+
+#' bisq.dist2weights
+#'
+#'
+#' Uses a Bisquare transformation to turn distances to spatial weights. Transfroms by
+#' weight = (1-(ndist/H)^2)^2 for distances less than or equal to H, 0 otherwise.
+#' Mimics Bi-square option in `lctools::moransI`.
+#'
+#' @inheritParams power.law
+#' @param cutoff `H` in the formula, where weight is 0.
+#'
+bisq.dist2weights <- function(d
+                              , cutoff = dst.ceiling
+                              , ... ) {
+
+  if_else( d >= cutoff
+           ,0
+           ,(1-as.numeric(d/cutoff)^2)^2)
+
+}
+
+#' neg.exp
+#'
+#' e^-distance. Used by Massey and Denton for the Clustering dimension of
+#' segregation. Notably they include tract where i==j and use an estimated
+#' self-distance
+#'
+#' @inheritParams power.law
+#'
+neg.exp <- function(d, ...) {
+  exp(-d)
+}
