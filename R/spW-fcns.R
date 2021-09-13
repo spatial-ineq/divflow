@@ -248,7 +248,7 @@ Della.wrapper_flow.weights <- function(cz
     write_rds(flwws
               ,file = paste0(save.dir
                             ,as.character(cz), '-', as.character(year)
-                            ,'flow-weights.rds'))
+                            ,'-flow-weights.rds'))
     }
 
   return(flwws)
