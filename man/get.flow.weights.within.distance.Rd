@@ -10,7 +10,7 @@ get.flow.weights.within.distance(
   drop.loops = T,
   prox.col = "below.cutoff",
   flow.counts = sfg,
-  spatial.weights = spws,
+  spatial.weights = NULL,
   weight.floor = 0.001
 )
 }
@@ -18,8 +18,8 @@ get.flow.weights.within.distance(
 \item{i}{a given tract geoid}
 
 \item{flow.type}{Whether to get weights based on all visitors to i from other
-proximate areas (default); or based on all proximiate areas visited by people in
-area i.}
+proximate areas (default); or based on all proximiate areas visited by
+people in area i.}
 
 \item{drop.loops}{Whether to drop loops (where origin==destination)}
 
@@ -28,11 +28,12 @@ cutoff from each other}
 
 \item{flow.counts}{data.frame with origin/destination/estimated visits (n).}
 
-\item{weight.floor}{flow weight floor. Minimum percent of incoming/visited trips
-between tracts to be included. 0.1\% by default.}
+\item{weight.floor}{flow weight floor. Minimum percent of incoming/visited
+trips between tracts to be included. 0.1\% by default.}
 }
 \description{
-Get "flow weights," i.e., proportion of visitor/visited from other tracts within
-distance threshold. Relies on precalculated distance matrix. Rounds to 4 digits
-for sparseness.
+Get "flow weights," i.e., proportion of visitor/visited from other tracts
+within distance threshold. Will use a precalculated distance matrix to filter
+by distance if \code{spatial.weights} is supplied. Does not filter by distace if
+it's left as null. Rounds to 4 digits for sparseness.
 }

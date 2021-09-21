@@ -27,13 +27,19 @@ devtools::load_all()
 Della.wrapper_flow.weights_by.rt
 
 tmp <- Della.wrapper_flow.weights_by.rt(cz_id = '19700'
-                                        ,agg2tracts = T
+                                        ,agg2tracts = F
                                         ,drop.loops = T
                                         ,sfg.dir = sfg.dir
+                                        ,weight.floor = .01
                                         ,year = '2019'
                                         ,save.dir = '/scratch/gpfs/km31/tests/flww-by-region/')
+
 tsts <- list.files('/scratch/gpfs/km31/tests/flww-by-region/'
                    ,full.names = T)
+
+tmp
+# saved 2disk version
+tmp2 <- tsts[1] %>% vroom::vroom()
 
 # gen for tracts --------------------------------------------------------------
 

@@ -143,12 +143,8 @@ get.flow.weights.within.distance <- function(i
     j.ids <- spatial.weights  %>% filter(geoid %in% i) %>% pull(prox.col) %>% unlist()
   else {
     j.ids <- c( unique(flow.counts$origin)
-               ,unique(flow.counts$dest) )
-    }
-
-  # drop loops if appropriate
-  if(drop.loops)
-    flow.counts <- flow.counts %>% filter(origin != dest)
+                ,unique(flow.counts$dest) )
+  }
 
   # Get either all trips from Js to I (incoming) or from I to all Js (visited)
   if(flow.type == 'incoming') {
@@ -193,12 +189,12 @@ get.flow.weights.within.distance <- function(i
 #' @inheritParams get.flow.weights.within.distance
 #'
 Della.wrapper_flow.weights_dst.cutoff <- function(cz
-                                       ,agg2tracts = T
-                                       ,drop.loops = T
-                                       ,weight.floor = .001
-                                       ,sfg.dir
-                                       ,year = '2019'
-                                       ,save.dir = NULL
+                                                  ,agg2tracts = T
+                                                  ,drop.loops = T
+                                                  ,weight.floor = .001
+                                                  ,sfg.dir
+                                                  ,year = '2019'
+                                                  ,save.dir = NULL
 ) {
 
   #browser()
@@ -221,6 +217,11 @@ Della.wrapper_flow.weights_dst.cutoff <- function(cz
                                sfg.dir = sfg.dir,
                                year = year)
 
+  # drop loops if appropriate
+  if(drop.loops)
+    sfg <- sfg %>% filter(origin != dest)
+
+  # agg2 tracts
   if(agg2tracts)
     sfg <- sfg.seg::cbg.flows2tracts(sfg)
 
@@ -233,7 +234,6 @@ Della.wrapper_flow.weights_dst.cutoff <- function(cz
                                                     ,flow.counts = sfg
                                                     ,spatial.weights = local.spws
                                                     ,weight.floor = 0.001
-                                                    ,drop.loops = drop.loops
                  )))
   flwws <- flwws %>%
     mutate(visited.flow.weights =
@@ -243,7 +243,6 @@ Della.wrapper_flow.weights_dst.cutoff <- function(cz
                                                     ,flow.counts = sfg
                                                     ,spatial.weights = local.spws
                                                     ,weight.floor = 0.001
-                                                    ,drop.loops = drop.loops
                  )))
 
   flwws <- flwws %>% select(geoid, matches('flow.weights'))
@@ -255,9 +254,9 @@ Della.wrapper_flow.weights_dst.cutoff <- function(cz
 
     write_rds(flwws
               ,file = paste0(save.dir
-                            ,as.character(cz), '-', as.character(year)
-                            ,'-flow-weights.rds'))
-    }
+                             ,as.character(cz), '-', as.character(year)
+                             ,'-flow-weights.rds'))
+  }
 
   return(flwws)
 }
@@ -268,19 +267,19 @@ Della.wrapper_flow.weights_dst.cutoff <- function(cz
 #' Wrapper function to generate all flow weights by either CZ or CBSA.
 #'
 #' @inheritParams get.flow.weights.within.distance
+#' @param list.colms whether to return list columns (or tibble colms)
 #'
 Della.wrapper_flow.weights_by.rt <- function(
   cz_id = NULL
   ,cbsa_id = NULL
   ,agg2tracts = T
   ,drop.loops = T
-  ,weight.floor = .001
+  ,weight.floor = .01
   ,sfg.dir
   ,year = '2019'
   ,save.dir = NULL
+  ,list.colms = T
 ) {
-
-  # browser()
 
   if(is.null(cbsa_id))
     czs2load <- cz_id
@@ -299,46 +298,41 @@ Della.wrapper_flow.weights_by.rt <- function(
                          ,subset.cols = c('origin', 'dest')
                          ,cz = cz_id
                          ,cbsa = cbsa_id)
+  # drop loops if appropriate
+  if(drop.loops)
+    sfg <- sfg %>% filter(origin != dest)
 
+  # agg2 tracts
   if(agg2tracts)
     sfg <- sfg.seg::cbg.flows2tracts(sfg)
 
-  # initialize output
-  flwws <- tibble(geoid = c( unique(sfg$origin)
-                            ,unique(sfg$dest) ))
-
   # get inc and visited weights
-  flwws <- flwws %>%
-    mutate(inc.flow.weights =
-             map(geoid
-                 ,~get.flow.weights.within.distance(i = .x
-                                                    ,'incoming'
-                                                    ,flow.counts = sfg
-                                                    ,spatial.weights = NULL
-                                                    ,weight.floor = 0.001
-                                                    ,drop.loops = drop.loops
-                 )))
+  inc.flwws <- sfg %>%
+    group_by(dest) %>%
+    mutate(flww = n / sum(n)) %>%
+    ungroup() %>%
+    filter(flww >= weight.floor) %>%
+    select(geoid = dest, j = origin, flww) %>%
+    nest(inc.flwws = c(j, flww))
 
-  flwws <- flwws %>%
-    mutate(visited.flow.weights =
-             map(geoid
-                 ,~get.flow.weights.within.distance(i = .x
-                                                    ,'visited'
-                                                    ,flow.counts = sfg
-                                                    ,spatial.weights = NULL
-                                                    ,weight.floor = 0.001
-                                                    ,drop.loops = drop.loops
-                 )))
+  vis.flwws <- sfg %>%
+    group_by(origin) %>%
+    mutate(flww = n / sum(n)) %>%
+    ungroup() %>%
+    filter(flww >= weight.floor) %>%
+    select(geoid = origin, j = dest, flww) %>%
+    nest(vis.flwws = c(j, flww))
 
-  flwws <- flwws %>% select(geoid, matches('flow.weights'))
+  flwws <- full_join(inc.flwws, vis.flwws)
 
+  # browser()
 
   if(!is.null(save.dir)) {
     if(!exists(save.dir))
       dir.create(save.dir, recursive = T)
 
     fn <- geox::get.region.identifiers( cz = cz_id
-                                       ,cbsa = cbsa_id) %>%
+                                        ,cbsa = cbsa_id) %>%
       paste(collapse = '-')
 
     write_rds(flwws
@@ -348,4 +342,11 @@ Della.wrapper_flow.weights_by.rt <- function(
   }
 
   return(flwws)
+}
+
+
+tbl2named.list <- function(x) {
+
+  as.vector(x$flww) %>%
+  setNames(x$j)
 }
