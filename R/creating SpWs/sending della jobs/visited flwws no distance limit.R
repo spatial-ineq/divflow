@@ -12,7 +12,7 @@ Sys.setenv("VROOM_SHOW_PROGRESS"="false")
 
 # set directories ---------------------------------------------------------
 
-#prx.dir <-  '/scratch/gpfs/km31/adjacencies+proximities/'
+prx.dir <-  '/scratch/gpfs/km31/adjacencies+proximities/'
 
 sfg.dir <-
   '/projects/SHARKEY/safegraph/processed/orig_dest_annual/'
@@ -33,8 +33,6 @@ save.dir <-
 save.dir
 
 czs <- geox::rx$cz %>% unique()
-
-
 
 ## simple della fcn
 Della.wrapper_incoming.flww.by.cz <- function(cz
@@ -82,8 +80,8 @@ Della.wrapper_incoming.flww.by.cz <- function(cz
 bg.params <-
   tibble(
     cz = czs
-    ,agg2tracts = T
-    ,weight.floor = 0.001
+    ,agg2tracts = F
+    ,weight.floor = 0.01
     ,drop.loops = T
     ,sfg.dir = sfg.dir
     ,year = '2019'
@@ -106,18 +104,44 @@ bg.flwws.dellajob <-
                                    'mail-user' = 'km31@princeton.edu')
   )
 
+
+
+# check gen & compile to one csv ------------------------------------------------------
+
+save.dir
+
+fns <- save.dir %>% list.files()
+
+smpl <- vroom::vroom(paste0(save.dir
+                            ,fns[1]))
+smpl[1:2] %>% map( ~unique(nchar(.x)) )
+smpl %>% mutate(across(c(origin, dest)
+                       ,~geox::fix.geoid(.x, 12)))
+gend <- map(
+  fns,
+  ~vroom::vroom(paste0(save.dir, .))
+)
+
+gend <- gend %>%
+  map(
+    function(x)
+      mutate(x,
+             across(c(origin, dest)
+                    ,~geox::fix.geoid(.x, 12)))
+    )
+
+gend <- gend %>% do.call('rbind', .)
+
+save.dir
+complete.save.dir <- paste0(save.dir,'complete/')
+dir.create(complete.save.dir)
+gend %>%
+  write.csv(
+    file = paste0(complete.save.dir
+                  ,'visited-bg-flwws.csv')
+    ,row.names = F
+  )
+gend
+
 # scratch -----------------------------------------------------------------
 
-# sample cz
-smpl <- sfg.seg::read.sfg.CZs('19700'
-                              ,sfg.dir)
-
-smplflw <- smpl %>%
-  filter(origin != dest) %>%
-  group_by(origin) %>%
-  mutate(visited.flww =
-           n/sum(n)) %>%
-  ungroup() %>%
-  filter(visited.flww >= .01)
-
-smplflw

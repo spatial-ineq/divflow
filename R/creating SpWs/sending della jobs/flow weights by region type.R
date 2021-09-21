@@ -2,7 +2,7 @@
 rm(list = ls())
 require(tidyverse)
 require(sf)
-#devtools::load_all()
+# devtools::load_all()
 
 # option setting
 sf_use_s2(T)
@@ -21,34 +21,29 @@ sfg.dir <-
 
 
 
+# test run ----------------------------------------------------------------
+
+devtools::load_all()
+Della.wrapper_flow.weights_by.rt
+
+tmp <- Della.wrapper_flow.weights_by.rt(cz_id = '19700'
+                                        ,agg2tracts = T
+                                        ,drop.loops = T
+                                        ,sfg.dir = sfg.dir
+                                        ,year = '2019'
+                                        ,save.dir = '/scratch/gpfs/km31/tests/flww-by-region/')
+tsts <- list.files('/scratch/gpfs/km31/tests/flww-by-region/'
+                   ,full.names = T)
+
 # gen for tracts --------------------------------------------------------------
 
 # within-distance tract list
-prx.dir %>% list.files()
-
-spws <- prx.dir %>%
-  list.files(pattern = 'tract-adjacencies.rds$'
-             ,full.names = T) %>%
-  read_rds()
-spws <- spws %>% select(geoid, below.cutoff)
-
-
-## tracts test run ##
-Della.wrapper_flow.weights(
-  cz = czs[2]
-  ,agg2tracts = T
-  ,weight.floor = 0.001
-  ,drop.loops = T
-  ,sfg.dir = sfg.dir
-  ,year = '2019'
-  ,save.dir = '/projects/SHARKEY/flww-tests/'
-)
 
 ## params for job ##
 
 # save dir
 save.dir <-
-  paste0(prx.dir, 'flow-weights/')
+  paste0(prx.dir, 'flow-weights/by-region/')
 # '~/R/all sharkey geoseg work/divflow/R/creating SpWs/spWs/'
 save.dir
 
@@ -56,7 +51,8 @@ czs <- geox::rx$cz %>% unique()
 
 tract.params <-
   tibble(
-     cz = czs
+    cz_id = czs
+    ,cbsa_id = NULL
     ,agg2tracts = T
     ,weight.floor = 0.001
     ,drop.loops = T
@@ -70,16 +66,31 @@ tract.params <-
 library(rslurm)
 tract.flwws.dellajob <-
   slurm_apply(f =
-                Della.wrapper_flow.weights,
+                Della.wrapper_flow.weights_by.rt,
               params = tract.params,
-              jobname = 'tract flow weights',
+              jobname = 'tract flow weights by cz',
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
-                                   'mem-per-cpu' = '20G',
+                                   'mem-per-cpu' = '30G',
                                    'mail-type' = list('begin', 'end', 'fail'),
-                                   'mail-user' = 'km31@princeton.edu'),
-              global_objects = c('spws')
+                                   'mail-user' = 'km31@princeton.edu')
+  )
+
+
+# by cbsa
+cbsas <- geox::rx$cbsa %>% unique()
+
+tract.params.cbsas <-
+  tibble(
+    cz_id = NULL
+    ,cbsa_id = cbsas
+    ,agg2tracts = T
+    ,weight.floor = 0.001
+    ,drop.loops = T
+    ,sfg.dir = sfg.dir
+    ,year = '2019'
+    ,save.dir = save.dir
   )
 
 
@@ -114,28 +125,12 @@ file.rename(fns, fn.dests)
 
 # bg flow weights ---------------------------------------------------------
 
+# save dir
+save.dir <-
+  paste0(prx.dir, 'flow-weights/bgs-by-region/')
 
 # within-distance tract list
 prx.dir %>% list.files()
-
-spws <- prx.dir %>%
-  list.files(pattern = #'tract-adjacencies.rds$' # WAITING ON THESE WEIGHTS
-             ,full.names = T) %>%
-  read_rds()
-
-spws <- spws %>% select(geoid, below.cutoff)
-
-
-## BG test run ##
-Della.wrapper_flow.weights(
-  cz = czs[2]
-  ,agg2tracts = F
-  ,weight.floor = 0.001
-  ,drop.loops = T
-  ,sfg.dir = sfg.dir
-  ,year = '2019'
-  ,save.dir = '/projects/SHARKEY/flww-tests/'
-)
 
 
 # params for job
@@ -143,14 +138,14 @@ czs <- geox::rx$cz %>% unique()
 
 bg.params <-
   tibble(
-    cz = czs
+    cz_id = czs
+    ,cbsa_id = NULL
     ,agg2tracts = F
     ,weight.floor = 0.001
     ,drop.loops = T
     ,sfg.dir = sfg.dir
     ,year = '2019'
-    ,save.dir = paste0(save.dir,
-                       'block-grp-flwws/')
+    ,save.dir = save.dir
   )
 
 
@@ -158,15 +153,47 @@ bg.params <-
 library(rslurm)
 cbg.flwws.dellajob <-
   slurm_apply(f =
-                Della.wrapper_flow.weights,
+                Della.wrapper_flow.weights_by.rt,
               params = bg.params,
-              jobname = 'cbg flow weights',
+              jobname = 'cbg flow weights by cz',
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
-                                   'mem-per-cpu' = '20G',
+                                   'mem-per-cpu' = '40G',
                                    'mail-type' = list('begin', 'end', 'fail'),
-                                   'mail-user' = 'km31@princeton.edu'),
-              global_objects = c('spws')
+                                   'mail-user' = 'km31@princeton.edu')
   )
+
+
+## by cbsa ##
+cbsas <- geox::rx$cbsa %>% unique()
+
+bg.params <-
+  tibble(
+    cz_id = NULL
+    ,cbsa_id = cbsas
+    ,agg2tracts = F
+    ,weight.floor = 0.001
+    ,drop.loops = T
+    ,sfg.dir = sfg.dir
+    ,year = '2019'
+    ,save.dir = save.dir
+  )
+
+
+# send job
+library(rslurm)
+cbg.flwws.dellajob <-
+  slurm_apply(f =
+                Della.wrapper_flow.weights_by.rt,
+              params = bg.params,
+              jobname = 'cbg flow weights by cbsa',
+              nodes = 19,
+              cpus_per_node = 1,
+              slurm_options = list(time = '10:00:00',
+                                   'mem-per-cpu' = '40G',
+                                   'mail-type' = list('begin', 'end', 'fail'),
+                                   'mail-user' = 'km31@princeton.edu')
+  )
+
 

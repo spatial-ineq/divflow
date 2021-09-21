@@ -111,20 +111,21 @@ dsts.below.threshold <- function(sfx, i, j.colm = 'nbs') {
 
 #' get.flow.weights.within.distance
 #'
-#' Get "flow weights," i.e., proportion of visitor/visited from other tracts within
-#' distance threshold. Relies on precalculated distance matrix. Rounds to 4 digits
-#' for sparseness.
+#' Get "flow weights," i.e., proportion of visitor/visited from other tracts
+#' within distance threshold. Will use a precalculated distance matrix to filter
+#' by distance if `spatial.weights` is supplied. Does not filter by distace if
+#' it's left as null. Rounds to 4 digits for sparseness.
 #'
 #' @inheritParams get.dist.weighted.composite
 #' @param flow.type Whether to get weights based on all visitors to i from other
-#'   proximate areas (default); or based on all proximiate areas visited by people in
-#'   area i.
+#'   proximate areas (default); or based on all proximiate areas visited by
+#'   people in area i.
 #' @param drop.loops Whether to drop loops (where origin==destination)
 #' @param prox.col name for list-column in `spws` with all areas within distance
 #'   cutoff from each other
 #' @param flow.counts data.frame with origin/destination/estimated visits (n).
-#' @param weight.floor flow weight floor. Minimum percent of incoming/visited trips
-#'   between tracts to be included. 0.1% by default.
+#' @param weight.floor flow weight floor. Minimum percent of incoming/visited
+#'   trips between tracts to be included. 0.1% by default.
 #'
 #' @export get.flow.weights.within.distance
 get.flow.weights.within.distance <- function(i
@@ -132,13 +133,19 @@ get.flow.weights.within.distance <- function(i
                                              ,drop.loops = T
                                              ,prox.col =  'below.cutoff'
                                              ,flow.counts = sfg
-                                             ,spatial.weights = spws
+                                             ,spatial.weights = NULL
                                              ,weight.floor = .001) {
 
   flow.type <- flow.type[[1]]
 
-  # get geoids for js within distance threshold
-  j.ids <- spatial.weights  %>% filter(geoid %in% i) %>% pull(prox.col) %>% unlist()
+  # get geoids for js within distance threshold or within same region
+  if(!is.null(spatial.weights))
+    j.ids <- spatial.weights  %>% filter(geoid %in% i) %>% pull(prox.col) %>% unlist()
+  else {
+    j.ids <- c( unique(flow.counts$origin)
+               ,unique(flow.counts$dest) )
+    }
+
   # drop loops if appropriate
   if(drop.loops)
     flow.counts <- flow.counts %>% filter(origin != dest)
@@ -175,16 +182,17 @@ get.flow.weights.within.distance <- function(i
     setNames(flwws$j)
 }
 
-#' Della.wrapper_flow.weights
+#' Della.wrapper_flow.weights_dst.cutoff
 #'
-#' Wrapper function to generate all flow weights. In addition to parameters, add a
-#' psatial weights object `spws` with a proximity list, as calculated with the
-#' `creating SpWs` scripts. This needs the `below.cutoff` list-column with
-#' tract/blockgroup geoids within the distance maximum.
+#' Wrapper function to generate all flow weights. In addition to parameters,
+#' keep a spatial weights object `spws` in global env. This is a a proximity
+#' list as calculated with the `creating SpWs` scripts and needs the
+#' `below.cutoff` list-column with tract/blockgroup geoids within the distance
+#' maximum.
 #'
 #' @inheritParams get.flow.weights.within.distance
 #'
-Della.wrapper_flow.weights <- function(cz
+Della.wrapper_flow.weights_dst.cutoff <- function(cz
                                        ,agg2tracts = T
                                        ,drop.loops = T
                                        ,weight.floor = .001
@@ -254,3 +262,90 @@ Della.wrapper_flow.weights <- function(cz
   return(flwws)
 }
 
+
+#' Della.wrapper_flow.weights_by.rt
+#'
+#' Wrapper function to generate all flow weights by either CZ or CBSA.
+#'
+#' @inheritParams get.flow.weights.within.distance
+#'
+Della.wrapper_flow.weights_by.rt <- function(
+  cz_id = NULL
+  ,cbsa_id = NULL
+  ,agg2tracts = T
+  ,drop.loops = T
+  ,weight.floor = .001
+  ,sfg.dir
+  ,year = '2019'
+  ,save.dir = NULL
+) {
+
+  # browser()
+
+  if(is.null(cbsa_id))
+    czs2load <- cz_id
+  else
+    czs2load <- geox::rx %>%
+      filter(cbsa %in% cbsa_id) %>%
+      pull(cz) %>% unique()
+
+  # sfg load
+  sfg <- sfg.seg::read.sfg.CZs(czs2load,
+                               sfg.dir = sfg.dir,
+                               year = year)
+
+  # subset to trips w/in region (cz/cbsa)
+  sfg <- geox::geosubset(sfg
+                         ,subset.cols = c('origin', 'dest')
+                         ,cz = cz_id
+                         ,cbsa = cbsa_id)
+
+  if(agg2tracts)
+    sfg <- sfg.seg::cbg.flows2tracts(sfg)
+
+  # initialize output
+  flwws <- tibble(geoid = c( unique(sfg$origin)
+                            ,unique(sfg$dest) ))
+
+  # get inc and visited weights
+  flwws <- flwws %>%
+    mutate(inc.flow.weights =
+             map(geoid
+                 ,~get.flow.weights.within.distance(i = .x
+                                                    ,'incoming'
+                                                    ,flow.counts = sfg
+                                                    ,spatial.weights = NULL
+                                                    ,weight.floor = 0.001
+                                                    ,drop.loops = drop.loops
+                 )))
+
+  flwws <- flwws %>%
+    mutate(visited.flow.weights =
+             map(geoid
+                 ,~get.flow.weights.within.distance(i = .x
+                                                    ,'visited'
+                                                    ,flow.counts = sfg
+                                                    ,spatial.weights = NULL
+                                                    ,weight.floor = 0.001
+                                                    ,drop.loops = drop.loops
+                 )))
+
+  flwws <- flwws %>% select(geoid, matches('flow.weights'))
+
+
+  if(!is.null(save.dir)) {
+    if(!exists(save.dir))
+      dir.create(save.dir, recursive = T)
+
+    fn <- geox::get.region.identifiers( cz = cz_id
+                                       ,cbsa = cbsa_id) %>%
+      paste(collapse = '-')
+
+    write_rds(flwws
+              ,file = paste0(save.dir
+                             ,fn
+                             ,'-flow-weights.rds'))
+  }
+
+  return(flwws)
+}
