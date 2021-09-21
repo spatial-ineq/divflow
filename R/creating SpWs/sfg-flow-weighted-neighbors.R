@@ -14,7 +14,6 @@ wdir <-
 
 
 # load a sample sfg cz ---------------------------------------------------------
-Sys.getenv('drop_dir') %>%
 
 sfg.dir <-
   paste0(Sys.getenv('drop_dir'),
@@ -38,16 +37,30 @@ sfg$n %>% quantile(deciles)
 
 sfg
 
+# calculated %to dest
+sfgp <- sfg %>%
+  group_by(origin) %>%
+  mutate(perc2dest = n/sum(n))
+sfgp  %>% pull(perc2dest) %>% sum()
+sfgp$perc2dest %>% quantile(deciles, na.rm = T)
+sfgp$perc2dest %>% quantile(seq(0,1,.05), na.rm = T)
+sfgp %>% filter(is.na(perc2dest))
+
 # what do trips outside of CZ look like?
 coids <- geox::x2cos(cz = sample.cz)
-outside.of.cz <- sfg %>%
+outside.of.cz <- sfgp %>%
   filter(!substr(dest, 1,5) %in%
            coids)
+
 outside.of.cz$n %>% quantile(deciles)
+outside.of.cz$perc2dest %>% quantile(deciles,na.rm = T)
+
 where.ppl.going <- outside.of.cz %>%
   group_by(dest) %>%
   summarise(visits.to = sum(n)) %>%
   ungroup()
+
+outside.of.cz %>% arrange(desc(perc2dest))
 where.ppl.going %>% arrange(desc(visits.to))
 # They're going to disney world, florida, places just barely outside CZ boundaries.
 
