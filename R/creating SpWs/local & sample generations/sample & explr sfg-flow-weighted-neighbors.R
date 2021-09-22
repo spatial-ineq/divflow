@@ -16,8 +16,10 @@ wdir <-
 # load a sample sfg cz ---------------------------------------------------------
 
 sfg.dir <-
-  paste0(Sys.getenv('drop_dir'),
-         'sfg-processed/orig_dest_annual/'
+  paste0(
+    '/scratch/gpfs/km31/'
+    #Sys.getenv('drop_dir'),
+         ,'sfg-processed/orig_dest_annual/'
          )
 
 sample.cz <- '19700'

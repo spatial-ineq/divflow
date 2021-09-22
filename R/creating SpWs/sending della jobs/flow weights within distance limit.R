@@ -34,7 +34,7 @@ spws <- spws %>% select(geoid, below.cutoff)
 
 
 ## tracts test run ##
-Della.wrapper_flow.weights(
+Della.wrapper_flow.weights_dst.cutoff(
   cz = czs[2]
   ,agg2tracts = T
   ,weight.floor = 0.001
@@ -70,7 +70,7 @@ tract.params <-
 library(rslurm)
 tract.flwws.dellajob <-
   slurm_apply(f =
-                Della.wrapper_flow.weights,
+                Della.wrapper_flow.weights_dst.cutoff,
               params = tract.params,
               jobname = 'tract flow weights',
               nodes = 19,
@@ -127,7 +127,7 @@ spws <- spws %>% select(geoid, below.cutoff)
 
 
 ## BG test run ##
-Della.wrapper_flow.weights(
+Della.wrapper_flow.weights_dst.cutoff(
   cz = czs[2]
   ,agg2tracts = F
   ,weight.floor = 0.001
@@ -158,7 +158,7 @@ bg.params <-
 library(rslurm)
 cbg.flwws.dellajob <-
   slurm_apply(f =
-                Della.wrapper_flow.weights,
+                Della.wrapper_flow.weights_dst.cutoff,
               params = bg.params,
               jobname = 'cbg flow weights',
               nodes = 19,
