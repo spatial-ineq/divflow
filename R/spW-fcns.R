@@ -298,13 +298,15 @@ Della.wrapper_flow.weights_by.rt <- function(
                          ,subset.cols = c('origin', 'dest')
                          ,cz = cz_id
                          ,cbsa = cbsa_id)
-  # drop loops if appropriate
-  if(drop.loops)
-    sfg <- sfg %>% filter(origin != dest)
 
   # agg2 tracts
   if(agg2tracts)
     sfg <- sfg.seg::cbg.flows2tracts(sfg)
+
+  # drop loops if appropriate
+  if(drop.loops)
+    sfg <- sfg %>% filter(origin != dest)
+
 
   # get inc and visited weights
   inc.flwws <- sfg %>%
