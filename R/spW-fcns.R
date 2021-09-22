@@ -10,6 +10,10 @@
 #' incorporates neighbors' attributes, spatial weights, and population or other
 #' weights.
 #'
+#' Note:: I think I can make this be a uniform fcn for both flow- and
+#' proximity/distance wegiths. But I generated the proximity distance weights with
+#' list-colms in instead of nested tibble-colms. So they are separate fcns for now.
+#'
 #' @param i a given tract geoid
 #' @param x full ct data to subset from
 #' @param value.col Attribute column name in `x` to calculate weighted avg of
@@ -21,17 +25,18 @@
 #' @param dist.col string for column name in `spws` that pairs geoids with distances
 #'   from i
 #' @param spws spatial weight matrices with a geoid column and other list columns for
-#'  spatial weights
+#'   spatial weights
 #' @param ... passed on to `dst.decay.fcn`
 #'
 #' @export get.dist.weighted.composite
-get.dist.weighted.composite <- function(i,  x
+get.prx.weighted.composite <- function(i,  x
                                         , value.col = 'value'
                                         , weight.col = 'weight'
                                         , dist.decay.fcn
                                         ,dist.col = 'dists'
                                         ,spatial.weights = spws
                                         ,...) {
+
 
   # all neighbors within dists of i, based on supplied spatial weights
   nbs <- spatial.weights %>% filter(geoid %in% i) %>% pull(dist.col)
