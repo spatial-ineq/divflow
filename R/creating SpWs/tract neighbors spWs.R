@@ -28,10 +28,11 @@ cts <- cts %>%
 
 # process illustration / check over test area ---------------------------------
 # define test set
+
 cts
 tmp <- cts %>% filter(statefp == '01' &
                         countyfp == '055')
-
+"
 # use st_relate to get 'queen' contiguity
 nbs <- sf::st_relate(tmp
                      ,pattern = 'F***T****' )
@@ -43,7 +44,7 @@ tmp$nbs <-
       ~tmp[., ]$geoid)
 
 tmp$n.nbs <- map_dbl(tmp$nbs, length)
-
+"
 
 # tmp['n.nbs'] %>% mapview::mapview(zcol = 'n.nbs')
 
@@ -104,18 +105,17 @@ tmp$n.nbs <- map_dbl(tmp$nbs, length)
 # units(cts$geometry)
 
 # tmp[,c('geoid', 'n.nbs')] %>% plot()
-st_crs(ctrs)$wkt
 # for each ct, get distance from all other cts that are within threshold
 
 # function moved to `spW-fncs`
-dsts.below.threshold(ctrs,
-                     1)
+devtools::load_all()
+dsts.below.threshold(tmp, i = 1, j.colm = 'nbs')
 
 
-tmp2 <- ctrs %>%
+tmp2 <- tmp %>%
   mutate(dists =
-           map(1:nrow(ctrs)
-               ,~dsts.below.threshold(ctrs, ., 'nbs')))
+           map(1:nrow(.)
+               ,~dsts.below.threshold(tmp, ., 'nbs')))
 
 tmp2[1,]$dists
 
@@ -181,10 +181,25 @@ cgts
 
 cgts <- purrr::reduce(cgts, left_join)
 
+
+# check ------------------------------------------------------------------------
+
+cgts$queen.adj.nbs %>% head() %>% map_dbl(length)
+
+
+cgts
+cgts %>%
+  mutate(across(matches('adj.nbs')
+                ,list(len =
+                          ~map_dbl( ., length))
+                )) %>%
+  #filter(queen.adj.nbs_len != rook.adj.nbs_len)
+  filter(queen.adj.nbs_len < rook.adj.nbs_len)
+
 # save
-#saveRDS(cgts,
-#        paste0(wdir,
-#               'tract-adjacencies.rds'))
+saveRDS(cgts,
+        paste0(wdir,
+               'tract-adjacencies.rds'))
 
 
 # some final checks ------------------------------------------------------------

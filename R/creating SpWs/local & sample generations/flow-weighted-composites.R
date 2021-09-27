@@ -13,9 +13,9 @@ options(tigris_use_cache = TRUE)
 # dropbox dir
 ddir <- Sys.getenv('drop_dir')
 
-# flow weights
+# flow-weights
 flww.dir <- paste0(ddir
-                   ,'/adjacencies+proximities/flow weights/')
+                   ,'/adjacencies+proximities/flow-weights/')
 list.dirs(flww.dir)
 list.files(flww.dir
            ,recursive = T)
@@ -163,7 +163,7 @@ Della.wrapper_flow.composite.by.region <- function( region.type
                                                             ,'res-chars-long.csv')
                                                    ,flww.base.dir =
                                                      paste0(ddir
-                                                            ,'/adjacencies+proximities/flow weights/')
+                                                            ,'/adjacencies+proximities/flow-weights/')
                                                    ,flww.subdir = 'cts-by-region/') {
 
   require(tidyverse)

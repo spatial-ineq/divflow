@@ -12,18 +12,30 @@ options(tigris_use_cache = TRUE)
 
 # get demovars -----------------------------------------------------------------
 
-ddir <- paste0(Sys.getenv('drop_dir'), 'seg-measures/by tract/broader ineq flows/')
+ddir <- paste0(Sys.getenv('drop_dir'),
+               'seg-measures/by tract/broader ineq flows/')
 flr <- ddir %>%
-  list.files(pattern='csv$'
+  list.files(pattern='flow-res.csv$'
              ,full.names = T) %>%
   vroom::vroom() %>%
   select(-`...1`)
 
-flr
+
+# flow estimates vary by region type, but not residential. Becuase only flows in a
+# given region are used
+flr %>% filter(geoid == '46013951900') %>%  select(1:3,pop,hh,
+                                                   matches('^residen'))
+
 res <- flr %>%
-  filter(region.type == 'cz') %>%
-  select(1:3,pop,hh,
-         matches('^residen'))
+  select(geoid,pop,hh,
+         matches('^residen')) %>% distinct()
+
+
+# re-add region xwalks
+res <- res %>%
+  mutate(countyfp = substr(geoid, 1,5)
+         ,.after = geoid) %>%
+    left_join(geox::rx[c('countyfp','cz','cbsa')])
 
 res %>% filter(duplicated(geoid)) #(alaska tracts w county splits)
 
@@ -48,11 +60,15 @@ res <- res %>%
 res <- res %>%
   rename_with(~gsub('^residential\\.', '', .))
 
-res <- res %>%
-  geox::abv.rcols()
-
 colnames(res)
 res
+
+
+# rearragne --------------------------------------------------------------------
+
+res <- res %>%
+  select(1,2,cz,cbsa,pop,hh,
+         everything(), -geoid10)
 
 # descriptives/other checks -----------------------------------------------------
 
@@ -63,10 +79,12 @@ res %>% filter(duplicated(geoid))
 
 # make long and organize weights ----------------------------------------------
 
+colnames(res)
+vvars <- setdiff(colnames(res)
+                 ,c('geoid', 'countyfp', 'cz','cbsa', 'pop', 'hh') )
 # make res long
 resl <- res %>%
-  select(-geoid10) %>%
-  pivot_longer(6:ncol(.))
+  pivot_longer(vvars)
 
 
 # get a weighted column depending on the var
@@ -81,13 +99,15 @@ resl <- resl %>%
   mutate(weight = case_when( name %in% hh.weighted.cols ~ hh
                              ,TRUE ~ pop))
 
-
 # rename
 resl <- resl %>%
   rename(var = name)
 
 
 # write ------------------------------------------------------------------------
+
+resl <- resl %>% select(-countyfp)
+resl
 
 save.pth <- paste0(Sys.getenv('drop_dir')
                    ,'seg-measures/by tract/broader ineq flows/'
