@@ -199,6 +199,7 @@ wdir <-
 "write.csv(resl
         ,file = paste0(wdir
                ,'spatial-composites/'
+               ,'no-region-filter/'
                ,'adjacency-weighted-tract-vals.csv')
         ,row.names = F)
 "
@@ -209,6 +210,7 @@ wdir <-
   '~/R/all sharkey geoseg work/divflow/R/creating SpWs/'
 resl <- vroom::vroom(paste0(wdir
                         ,'spatial-composites/'
+                        ,'no-region-filter/'
                         ,'adjacency-weighted-tract-vals.csv'))
 resl
 
@@ -304,6 +306,7 @@ wdir <-
 write.csv(resl
         ,file = paste0(wdir
                ,'spatial-composites/'
+               ,'no-region-filter/'
                ,'bisq-dist-weighted-tract-vals.csv')
         ,row.names = F)
 "
