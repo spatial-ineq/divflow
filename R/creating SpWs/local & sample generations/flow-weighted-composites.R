@@ -242,11 +242,36 @@ Della.wrapper_flow.composite.by.region('cz'
 # scratch ----------------------------------------------------------------------
 
 
-
-flww.pths <- list.files(flww.dir
-                       ,recursive = T
-                       ,full.names = T
-                       ,pattern='cz-[0-9]{5}'
-                       )
-flwws <- flww.pths %>% head() %>% map_dfr(read_rds)
+smpl <- resl  %>% geox::geosubset(cz = '19700')
 flwws
+
+tmp <- smpl %>% left_join(flwws)
+
+untmp <- tmp %>%
+  unnest(cols = inc.flwws)
+untmp <- untmp %>% filter(geoid != j)
+
+# experimenting with faster, tidier way, but I think only solution would be
+# tidygraph (because I'm effectively subsetting based on ties--- using js to
+# subset from attribute df). But Tidygraph also isn't fast. So i will just keep
+# my manual little slow fcn.
+tst <- untmp %>%
+  filter(var %in% c('perc_hsp'
+                    ,'perc_bl')) %>%
+  group_by(geoid,
+           var) %>%
+  summarise(inc.flww.composite =
+              stats::weighted.mean(value, flww))
+
+
+orig <- smpl %>%
+  filter(var == 'perc_bl') %>%
+  mutate(inc.flww.composite =
+           map_dbl(geoid,
+          function(i)
+            get.flow.weighted.composite(i
+                                       , x = .
+                                       ,prx.col = 'inc.flwws'
+                                       ,spatial.weights = flwws)))
+tst
+orig

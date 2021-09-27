@@ -239,6 +239,7 @@ exponential.decay <- function(d, pb = 1, alpha = 0.5
 #' @inheritParams power.law
 #' @param cutoff `H` in the formula, where weight is 0.
 #'
+#'
 bisq.dist2weights <- function(d
                               , cutoff = dst.ceiling
                               , ... ) {
