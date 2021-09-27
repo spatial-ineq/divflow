@@ -23,7 +23,8 @@ direction.)}
 
 \item{sfx}{an \code{sf} object to crop to and use CRS from. Nodes outside the bbox of
 this area will be trimmed. Defaults to Lambert conformal conic projection if
-left null.}
+left null. (Why do I have all this complexity instead of just using coord_sf
+when mappi ng? Think I need to revise..)}
 }
 \description{
 Spatializes a graph based on the node \code{name}s. Names should align with geoids for

@@ -15,8 +15,6 @@ get.flow.weights.within.distance(
 )
 }
 \arguments{
-\item{i}{a given tract geoid}
-
 \item{flow.type}{Whether to get weights based on all visitors to i from other
 proximate areas (default); or based on all proximiate areas visited by
 people in area i.}

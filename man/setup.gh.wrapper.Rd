@@ -21,7 +21,8 @@ setup.gh.wrapper(
 \arguments{
 \item{sfx}{an \code{sf} object to crop to and use CRS from. Nodes outside the bbox of
 this area will be trimmed. Defaults to Lambert conformal conic projection if
-left null.}
+left null. (Why do I have all this complexity instead of just using coord_sf
+when mappi ng? Think I need to revise..)}
 
 \item{min.str}{If null, filters to top quartile after other filters applied}
 

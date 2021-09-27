@@ -2,7 +2,8 @@
 % Please edit documentation in R/spW-fcns.R
 \name{dsts.below.threshold}
 \alias{dsts.below.threshold}
-\title{dsts.below.threshold}
+\title{most fcns that would be here are just moved to the sending Della job scripts
+that generate the weights or composites.}
 \usage{
 dsts.below.threshold(sfx, i, j.colm = "nbs")
 }
@@ -15,6 +16,10 @@ containing point geometries.}
 \item{j.colm}{list-column of geoids in \code{sfx} to get distance from}
 }
 \description{
+In R/creating SpWs/sending della jobs/
+dsts.below.threshold
+}
+\details{
 Quick fcn with hardcoded items, including assumption of meters from crs length
 unit
 }
