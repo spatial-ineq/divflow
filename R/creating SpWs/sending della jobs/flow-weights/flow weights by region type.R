@@ -2,7 +2,7 @@
 rm(list = ls())
 require(tidyverse)
 require(sf)
-# devtools::load_all()
+devtools::load_all()
 
 # option setting
 sf_use_s2(T)
@@ -22,9 +22,12 @@ sfg.dir <-
 
 
 # test run ----------------------------------------------------------------
-
+"
 devtools::load_all()
 Della.wrapper_flow.weights_by.rt
+
+phl <- sfg.seg::read.sfg.CZs('19700'
+                             ,sfg.dir)
 
 tmp <- Della.wrapper_flow.weights_by.rt(cz_id = '19700'
                                         ,agg2tracts = F
@@ -38,8 +41,21 @@ tsts <- list.files('/scratch/gpfs/km31/tests/flww-by-region/'
                    ,full.names = T)
 
 tmp
+tmp
 # saved 2disk version
-tmp2 <- tsts[1] %>% vroom::vroom()
+tmp2 <- tsts[2] %>% read_rds()
+tmp2$geoid %>% head() %>% nchar()
+
+
+tmp2"
+
+
+# weight floor descriptives -----------------------------------------------
+
+# for a sample BG in Philly, a weight floor of .01 filters out 727/732
+# connections (5 remaining with a share of >1%). Those remaining connections
+# comprise ~33% of visits. With no weight floor, flww quartiles were:
+# .0000 0.0005 0.0007 0.0013 0.0443
 
 # gen for tracts --------------------------------------------------------------
 
@@ -70,6 +86,7 @@ tract.params <-
 
 # send job
 library(rslurm)
+devtools::load_all()
 tract.flwws.dellajob <-
   slurm_apply(f =
                 Della.wrapper_flow.weights_by.rt,
@@ -78,7 +95,7 @@ tract.flwws.dellajob <-
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
-                                   'mem-per-cpu' = '30G',
+                                   'mem-per-cpu' = '20G',
                                    'mail-type' = list('begin', 'end', 'fail'),
                                    'mail-user' = 'km31@princeton.edu')
   )
@@ -98,6 +115,21 @@ tract.params.cbsas <-
     ,year = '2019'
     ,save.dir = save.dir
   )
+# send job
+library(rslurm)
+
+tract.flwws.dellajob <-
+  slurm_apply(f =
+                Della.wrapper_flow.weights_by.rt,
+              params = tract.params.cbsas,
+              jobname = 'tract flow weights by cbsa',
+              nodes = 19,
+              cpus_per_node = 1,
+              slurm_options = list(time = '10:00:00',
+                                   'mem-per-cpu' = '20G',
+                                   'mail-type' = list('begin', 'end', 'fail'),
+                                   'mail-user' = 'km31@princeton.edu')
+  )
 
 
 # check generation --------------------------------------------------------
@@ -111,13 +143,12 @@ fns <- list.files(save.dir
 smpl <- fns[1:2] %>%
   map_dfr(read_rds)
 
-ctfw <- fns %>% map_dfr(read_rds)
-
+smpl$inc.flwws[[1]]
 # looks great and complete!
 ctfw$geoid %>% duplicated() %>% sum()
 
 # change save directory ---------------------------------------------------
-save.dir
+"save.dir
 ct.save.dir <- paste0(save.dir
                       ,'cts-20mi-limit/')
 dir.create(ct.save.dir)
@@ -127,7 +158,7 @@ fn.dests <-
   fns %>% gsub(save.dir,ct.save.dir, .
                ,fixed = T)
 
-file.rename(fns, fn.dests)
+file.rename(fns, fn.dests)"
 
 # bg flow weights ---------------------------------------------------------
 
@@ -165,7 +196,7 @@ cbg.flwws.dellajob <-
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
-                                   'mem-per-cpu' = '40G',
+                                   'mem-per-cpu' = '20G',
                                    'mail-type' = list('begin', 'end', 'fail'),
                                    'mail-user' = 'km31@princeton.edu')
   )
@@ -197,9 +228,27 @@ cbg.flwws.dellajob <-
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
-                                   'mem-per-cpu' = '40G',
+                                   'mem-per-cpu' = '20G',
                                    'mail-type' = list('begin', 'end', 'fail'),
                                    'mail-user' = 'km31@princeton.edu')
   )
 
+
+
+# checking genration ------------------------------------------------------
+
+
+
+# save dir
+save.dir <-
+  paste0(prx.dir, 'flow-weights/bgs-by-region/')
+
+fns <- list.files(save.dir) %>%
+  str_extract('[a-z]+-[0-9]{5}')
+
+bgczs <- fns[grepl('cz', fns)]
+bgczs <- paste0(save.dir,bgczs) %>% map_dfr(read_rds)
+bgczs %>% nrow()
+bgczs$geoid[1:5] %>% nchar()
+bgczs[1,]$inc.flwws[[1]] %>% filter( j %in% '470190701002')
 

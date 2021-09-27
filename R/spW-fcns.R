@@ -1,66 +1,10 @@
 
-# sp-weighted composites -------------------------------------------------------
+# organizational note -----------------------------------------------------
 
-
-
-#' get.dist.weighted.composite
+#' most fcns that would be here are just moved to the sending Della job scripts
+#' that generate the weights or composites.
 #'
-#' Given an area geoid, a set of attribute variables for all areas, and a list-column
-#' of spatial weights between areas, calculate a "spatial composite" that
-#' incorporates neighbors' attributes, spatial weights, and population or other
-#' weights.
-#'
-#' Note:: I think I can make this be a uniform fcn for both flow- and
-#' proximity/distance wegiths. But I generated the proximity distance weights with
-#' list-colms in instead of nested tibble-colms. So they are separate fcns for now.
-#'
-#' @param i a given tract geoid
-#' @param x full ct data to subset from
-#' @param value.col Attribute column name in `x` to calculate weighted avg of
-#'   adjacent tracts for.
-#' @param weight.col column name in `x` for non spatial weights. Probably population
-#'   or households
-#' @param dist.decay.fcn a distance decay or proximity fcn to convert distances to
-#'   spatial weights
-#' @param dist.col string for column name in `spws` that pairs geoids with distances
-#'   from i
-#' @param spws spatial weight matrices with a geoid column and other list columns for
-#'   spatial weights
-#' @param ... passed on to `dst.decay.fcn`
-#'
-#' @export get.dist.weighted.composite
-get.prx.weighted.composite <- function(i,  x
-                                        , value.col = 'value'
-                                        , weight.col = 'weight'
-                                        , dist.decay.fcn
-                                        ,dist.col = 'dists'
-                                        ,spatial.weights = spws
-                                        ,...) {
-
-
-  # all neighbors within dists of i, based on supplied spatial weights
-  nbs <- spatial.weights %>% filter(geoid %in% i) %>% pull(dist.col)
-  # organize as tibble
-  nbs <- tibble(geoid = names(nbs[[1]])
-                ,dist.from.i = nbs[[1]] )
-
-  # combine distances and attributes; filter out loops (where i==j)
-  js <- x[x$geoid %in% nbs$geoid, ] %>%
-    left_join(nbs, by = 'geoid') %>%
-    filter(geoid != i)
-
-  # convert distance to weight w/ proximity fcn
-  js$spatial.weight <-
-    dist.decay.fcn(js$dist.from.i
-                   , ...)
-
-  # apply both spatial weight and pop or hh weight to get spatial mean
-  spu <- stats::weighted.mean(js$value
-                              ,js$weight * js$spatial.weight
-                              ,na.rm = T)
-  return(spu)
-}
-
+#' In R/creating SpWs/sending della jobs/
 
 
 # distances within cutoff ------------------------------------------------------
@@ -303,13 +247,15 @@ Della.wrapper_flow.weights_by.rt <- function(
                          ,subset.cols = c('origin', 'dest')
                          ,cz = cz_id
                          ,cbsa = cbsa_id)
-  # drop loops if appropriate
-  if(drop.loops)
-    sfg <- sfg %>% filter(origin != dest)
 
   # agg2 tracts
   if(agg2tracts)
     sfg <- sfg.seg::cbg.flows2tracts(sfg)
+
+  # drop loops if appropriate
+  if(drop.loops)
+    sfg <- sfg %>% filter(origin != dest)
+
 
   # get inc and visited weights
   inc.flwws <- sfg %>%

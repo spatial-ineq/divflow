@@ -10,8 +10,14 @@ options(tigris_use_cache = TRUE)
 
 # load spatial weight matrices -------------------------------------------------
 
-spw.dir <- paste0(Sys.getenv('drop_dir'), '/tract adjacencies+proximities/')
-spws <- list.files(spw.dir, pattern='adjacencies.rds'
+# dropbox dir or della base dir
+ddir <- #Sys.getenv('drop_dir')
+  '/scratch/gpfs/km31/'
+
+spw.dir <- paste0(ddir, 'adjacencies+proximities/')
+spws <-
+  list.files(spw.dir,
+             pattern='tract-adjacencies.rds'
            ,full.names = T) %>%
   readRDS()
 
@@ -21,7 +27,7 @@ spws
 # get demovars -----------------------------------------------------------------
 
 # (compiled in data-raw/)
-demo.pth <- paste0(Sys.getenv('drop_dir')
+demo.pth <- paste0(ddir
                   ,'seg-measures/by tract/broader ineq flows/'
                   ,'res-chars-long.csv')
 resl <- vroom::vroom(demo.pth)
@@ -59,6 +65,106 @@ get.avg.adjacent <- function(i,  x
   return(spu)
 }
 
+
+
+# Della wrapper for adjacencies -------------------------------------------
+
+#' Della.wrapper_adj.composite.by.region
+#'
+#'
+#' @param ddir base directory that contains other needed datasets
+#' @param demo.pth data.frame long by variable--As prepped in divflow/data-raw/
+#' @param adj.dir base directory for adjacency weights (spws)
+#'
+Della.wrapper_flow.composite.by.region <- function(
+  region.type
+  ,region.id
+  ,ddir =
+    '/scratch/gpfs/km31/'
+  #Sys.getenv('drop_dir')
+  ,save.dir =
+    paste0(ddir
+           ,'adjacencies+proximities/spatial-composites/adjacency-composites/')
+  ,save.subdir = NULL
+  ,demo.pth =
+    paste0(ddir
+           ,'seg-measures/by tract/broader ineq flows/'
+           ,'res-chars-long.csv')
+  ,spw.base.dir =
+    paste0(ddir
+           ,'adjacencies+proximities/')
+  ,flww.subdir = '') {
+
+  require(tidyverse)
+
+  # load long demographics
+  resl <- vroom::vroom(demo.pth)
+  # filter to region
+  resl <- resl %>%
+    filter(rid == region.id
+           & rt == region.type)
+
+  # load pre-calculated spw weights
+  spw.dir <- paste0(spw.base.dir,
+                     spw.subdir)
+  spw.pth <- list.files(spw.dir
+                         ,full.names = T
+                         ,pattern =
+                           paste0(
+                             region.type,'-',
+                             region.id,'.*')
+  )
+
+  spws <- spw.pth %>% read_rds()
+
+  # check fcn in env
+  if(!exists('get.avg.adjacent'))
+    warning('composite fcn missing from env')
+
+  # split-map-bind w incoming and vis
+  composites <-
+    resl %>%
+    split(.$var) %>%
+    map_dfr( ~mutate(.,
+                     rook.adj.composite =
+                       map_dbl(geoid,
+                               function(i)
+                                 get.avg.adjacent(
+                                   i , x = .
+                                   , value.col = 'value'
+                                   , weight.col = 'weight'
+                                   ,nb.col = 'rook.adj.nbs'
+                                   ,spatial.weights = spws))
+                     , qn.adj.composite =
+                       map_dbl(geoid,
+                               function(i)
+                                 get.avg.adjacent(
+                                   i , x = .
+                                   , value.col = 'value'
+                                   , weight.col = 'weight'
+                                   ,nb.col = 'queen.adj.nbs'
+                                   ,spatial.weights = spws))
+    ))
+
+  if(!is.null(save.subdir)) {
+
+    save.dir <- paste0(save.dir,
+                       save.subdir)
+
+    if(!exists(save.dir))
+      dir.create(save.dir)
+
+    rids <- geox::add.rns(tibble(rt = region.type, rid = region.id ))
+    rids <- rids %>% paste0(collapse = '-')
+
+    save.pth <- paste0(save.dir, rids, '.csv')
+
+    write.csv(composites
+              ,save.pth)
+  }
+  return(composites)
+
+}
 
 # split-map-bind
 "
