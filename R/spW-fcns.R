@@ -219,15 +219,15 @@ Della.wrapper_flow.weights_dst.cutoff <- function(cz
 #' @param list.colms whether to return list columns (or tibble colms)
 #'
 Della.wrapper_flow.weights_by.rt <- function(
-  cz_id = NULL
+   cz_id = NULL
   ,cbsa_id = NULL
   ,agg2tracts = T
   ,drop.loops = T
-  ,weight.floor = .01
+  ,weight.floor = .001
   ,sfg.dir
   ,year = '2019'
   ,save.dir = NULL
-  ,list.colms = T
+  #,list.colms = T
 ) {
 
   if(is.null(cbsa_id))
@@ -282,13 +282,11 @@ Della.wrapper_flow.weights_by.rt <- function(
     if(!exists(save.dir))
       dir.create(save.dir, recursive = T)
 
-    fn <- geox::get.region.identifiers( cz = cz_id
-                                        ,cbsa = cbsa_id) %>%
-      paste(collapse = '-')
-
+    rids <- region2identifiers( region.type = region.type
+                                ,region.id = region.id)
     write_rds(flwws
               ,file = paste0(save.dir
-                             ,fn
+                             ,rids
                              ,'-flow-weights.rds'))
   }
 
@@ -296,8 +294,21 @@ Della.wrapper_flow.weights_by.rt <- function(
 }
 
 
-tbl2named.list <- function(x) {
+# helpers -----------------------------------------------------------------
 
-  as.vector(x$flww) %>%
-  setNames(x$j)
+#' region2identifiers
+#'
+#' Turns region.type and region.id into a cleaned & concatenated set of
+#' identifiers, which I use for partial saves.
+#'
+#' @export region2identifiers
+region2identifiers <- function(region.type, region.id) {
+
+  requireNamespace('geox')
+  rids <- geox::add.rns(tibble(rt = region.type, rid = region.id ))
+  rids <- rids %>% paste0(collapse = '-')
+
+  # transform '/'s in identifier (sometimes appear in CBSA names)
+  rids <- rids %>% gsub('\\/', '-', .)
+  return(rids)
 }

@@ -195,8 +195,8 @@ Della.wrapper_flow.composite.by.region <- function(
     if(!exists(save.dir))
       dir.create(save.dir)
 
-    rids <- geox::add.rns(tibble(rt = region.type, rid = region.id ))
-    rids <- rids %>% paste0(collapse = '-')
+    rids <- region2identifiers( region.type = region.type
+                                ,region.id = region.id)
 
     save.pth <- paste0(save.dir, rids, '.csv')
 

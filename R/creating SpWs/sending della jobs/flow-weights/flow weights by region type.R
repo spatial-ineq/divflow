@@ -28,8 +28,17 @@ Della.wrapper_flow.weights_by.rt
 
 phl <- sfg.seg::read.sfg.CZs('19700'
                              ,sfg.dir)
-
+geox::rpops %>% filter(rt=='cbsa') %>% geox::add.rns()
 tmp <- Della.wrapper_flow.weights_by.rt(cz_id = '19700'
+                                        ,agg2tracts = F
+                                        ,drop.loops = T
+                                        ,sfg.dir = sfg.dir
+                                        ,weight.floor = .01
+                                        ,year = '2019'
+                                        ,save.dir = '/scratch/gpfs/km31/tests/flww-by-region/')
+
+
+tmpcbsa <- Della.wrapper_flow.weights_by.rt(cbsa_id = '10300'
                                         ,agg2tracts = F
                                         ,drop.loops = T
                                         ,sfg.dir = sfg.dir
@@ -39,16 +48,15 @@ tmp <- Della.wrapper_flow.weights_by.rt(cz_id = '19700'
 
 tsts <- list.files('/scratch/gpfs/km31/tests/flww-by-region/'
                    ,full.names = T)
-
+tmpcbsa
 tmp
 tmp
 # saved 2disk version
 tmp2 <- tsts[2] %>% read_rds()
 tmp2$geoid %>% head() %>% nchar()
 
-
-tmp2"
-
+tmp2
+"
 
 # weight floor descriptives -----------------------------------------------
 
@@ -56,6 +64,12 @@ tmp2"
 # connections (5 remaining with a share of >1%). Those remaining connections
 # comprise ~33% of visits. With no weight floor, flww quartiles were:
 # .0000 0.0005 0.0007 0.0013 0.0443
+
+
+# gen lists ---------------------------------------------------------------
+
+genczs <- geox::rpops %>% filter(pop > 25e3) %>% filter(rt == 'cz') %>% pull(rid)
+gencbsas <- geox::rpops %>% filter(pop > 25e3)  %>% filter(rt == 'cbsa') %>% pull(rid)
 
 # gen for tracts --------------------------------------------------------------
 
@@ -65,15 +79,14 @@ tmp2"
 
 # save dir
 save.dir <-
-  paste0(prx.dir, 'flow-weights/by-region/')
+  paste0(prx.dir, 'flow-weights/cts-by-region/')
 # '~/R/all sharkey geoseg work/divflow/R/creating SpWs/spWs/'
 save.dir
 
-czs <- geox::rx$cz %>% unique()
-
+## tract x CZ
 tract.params <-
   tibble(
-    cz_id = czs
+    cz_id = genczs
     ,cbsa_id = NULL
     ,agg2tracts = T
     ,weight.floor = 0.001
@@ -101,13 +114,13 @@ tract.flwws.dellajob <-
   )
 
 
-# by cbsa
-cbsas <- geox::rx$cbsa %>% unique()
+## tract x CBSA
+gencbsas <- geox::rpops %>% filter(rt == 'cbsa') %>% pull(rid)
 
 tract.params.cbsas <-
   tibble(
     cz_id = NULL
-    ,cbsa_id = cbsas
+    ,cbsa_id = gencbsas
     ,agg2tracts = T
     ,weight.floor = 0.001
     ,drop.loops = T
@@ -133,7 +146,6 @@ tract.flwws.dellajob <-
 
 
 # check generation --------------------------------------------------------
-
 # (also i should move to tract-specific directory)
 save.dir
 fns <- list.files(save.dir
@@ -144,6 +156,8 @@ smpl <- fns[1:2] %>%
   map_dfr(read_rds)
 
 smpl$inc.flwws[[1]]
+geox::rpops %>% count(rt)
+fns[grepl('cbsa', fns)]
 # looks great and complete!
 ctfw$geoid %>% duplicated() %>% sum()
 
@@ -171,11 +185,9 @@ prx.dir %>% list.files()
 
 
 # params for job
-czs <- geox::rx$cz %>% unique()
-
 bg.params <-
   tibble(
-    cz_id = czs
+    cz_id = genczs
     ,cbsa_id = NULL
     ,agg2tracts = F
     ,weight.floor = 0.001
@@ -203,7 +215,6 @@ cbg.flwws.dellajob <-
 
 
 ## by cbsa ##
-cbsas <- geox::rx$cbsa %>% unique()
 
 bg.params <-
   tibble(
