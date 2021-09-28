@@ -195,7 +195,7 @@ Della.wrapper_flow.composite.by.region <- function(
     if(!exists(save.dir))
       dir.create(save.dir)
 
-    rids <- region2identifiers( region.type = region.type
+    rids <- divflow::region2identifiers( region.type = region.type
                                 ,region.id = region.id)
 
     save.pth <- paste0(save.dir, rids, '.csv')
@@ -208,8 +208,7 @@ Della.wrapper_flow.composite.by.region <- function(
 
 
 # test run
-# Della.wrapper_flow.composite.by.region('cz'
-#                                        ,'19700')
+# Della.wrapper_flow.composite.by.region('cz', '19700')
 
 
 # fcns to incl in add_global ----------------------------------------------
@@ -308,7 +307,7 @@ sdir <- paste0( '/scratch/gpfs/km31/'
 gend.cbsas <- list.files(sdir,pattern = '^cbsa')
 gend.czs <- list.files(sdir,pattern = '^cz')
 
-rpops %>% filter(pop > 25e3) %>% count(rt)
+geox::rpops %>% filter(pop > 25e3) %>% count(rt)
 gend.czs %>% length()
 gend.cbsas  %>% length()
 

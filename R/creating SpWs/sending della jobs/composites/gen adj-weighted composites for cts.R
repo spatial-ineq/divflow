@@ -22,7 +22,8 @@ spws <-
   readRDS()
 
 spws
-
+spws %>% filter( map_dbl(queen.adj.nbs, length) !=
+                    map_dbl(rook.adj.nbs, length))
 
 # get demovars -----------------------------------------------------------------
 
@@ -138,7 +139,7 @@ Della.wrapper_adj.composite.by.region <- function(
     if(!exists(save.dir))
       dir.create(save.dir)
 
-    rids <- region2identifiers( region.type = region.type
+    rids <- divflow::region2identifiers( region.type = region.type
                                ,region.id = region.id)
 
     save.pth <- paste0(save.dir, rids, '.csv')
