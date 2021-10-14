@@ -80,7 +80,6 @@ get.flow.weighted.composite <- function(i, x
   # again, return NA when no visited flows
   if(is.null(nbs)) return(as.numeric(NA))
 
-
   # organize as tibble if not already
   if(! 'tbl' %in% class(nbs))
     nbs <- tibble(geoid = names(nbs)
@@ -92,7 +91,7 @@ get.flow.weighted.composite <- function(i, x
     filter(geoid != i)
 
   # for flow weight, only use flww, and not population or hhs
-  spu <- stats::weighted.mean(js$value
+  spu <- stats::weighted.mean( js$value
                               ,js$flww
                               ,na.rm = T)
   return(spu)

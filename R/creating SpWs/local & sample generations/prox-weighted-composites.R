@@ -11,8 +11,8 @@ options(tigris_use_cache = TRUE)
 # load spatial weight matrices -------------------------------------------------
 
 # dropbox dir or della base dir
-ddir <- #Sys.getenv('drop_dir')
-  '/scratch/gpfs/km31/'
+ddir <- Sys.getenv('drop_dir')
+#  '/scratch/gpfs/km31/'
 
 spw.dir <- paste0(ddir, 'adjacencies+proximities/')
 spws <-

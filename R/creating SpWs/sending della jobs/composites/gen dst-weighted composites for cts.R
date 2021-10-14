@@ -7,7 +7,6 @@ require(sf)
 sf_use_s2(T)
 options(tigris_use_cache = TRUE)
 
-
 # load spatial weight matrices -------------------------------------------------
 
 # dropbox dir or della base dir

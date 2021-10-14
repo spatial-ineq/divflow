@@ -8,8 +8,6 @@ sf_use_s2(T)
 options(tigris_use_cache = TRUE)
 
 
-
-
 # get demovars -----------------------------------------------------------------
 
 ddir <- paste0(Sys.getenv('drop_dir'),

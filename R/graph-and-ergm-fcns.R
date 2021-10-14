@@ -24,6 +24,7 @@ sfx2sfg <- function( eligible.sf
   requireNamespace('sfg.seg')
   requireNamespace('geox')
 
+  # get county overlap with bounding area, and use that to load sfg data
   cos <- tigris::counties(year = year)
   cos <- cos %>% st_transform(st_crs(eligible.sf))
 
@@ -139,7 +140,8 @@ sfg2gh <- function(sfg,
 #' @param sfx an `sf` object to crop to and use CRS from. Nodes outside the bbox of
 #'   this area will be trimmed. Defaults to Lambert conformal conic projection if
 #'   left null. (Why do I have all this complexity instead of just using coord_sf
-#'   when mappi ng? Think I need to revise..)
+#'   when mappi ng? Think I need to revise.. I think b/c i felt it allowed for more
+#'   controlled trimming but..)
 #' @inheritParams sfg2gh
 #'
 #' @export spatialize.graph
@@ -209,7 +211,9 @@ spatialize.graph <- function( gh
 #'
 #' @inheritParams spatialize.graph
 #' @inheritParams sfg2gh
-#' @param min.str If null, filters to top quartile after other filters applied
+#' @param min.tie.str If not null, floor for tie strenght
+#' @param tie.str.deciles If not null, number of deciles of tie str to keep after all
+#'   other trims
 #'
 #' @export apply.flow.filters
 apply.flow.filters <- function(gh
@@ -240,18 +244,19 @@ apply.flow.filters <- function(gh
            n >= min.flows)
 
   # filter by tie strength
-  if(!is.null(min.str))
+  if(!is.null(min.tie.str))
     gh <- gh %>%
     activate('edges') %>%
     filter_at( vars(matches('^perc|^tstr'))
-               ,any_vars(. > min.str))
-  else
+               ,any_vars(. >= min.tie.str))
+ if(!is.null(tie.str.deciles))
     gh <- gh %>%
     activate('edges') %>%
     filter_at( vars(matches('^perc|^tstr'))
-               ,any_vars(. > # drop n quartiles
+               ,any_vars(. >= # drop n quartiles
                            quantile(.,
-                                    seq(0,1,.25))[2]))
+                                    seq(0,1,.1))[tie.str.deciles + 1])
+               )
   return(gh)
 }
 

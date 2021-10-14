@@ -26,6 +26,8 @@ plc <- divM::largest.plc.in.cz %>%
 map.range <- units::set_units(6 , 'miles')
 max.distance <- units::set_units(10 , 'miles')
 
+ctr <- plc %>% divM::conic.transform() %>% st_centroid()
+
 eligible.area <- ctr %>%
   st_buffer(map.range + max.distance)
 
@@ -37,12 +39,16 @@ divlyrs <- get.div.layers(bounds.sf = frame.area)
 ggplot() + divlyrs # magic!
 
 
+# tracts -----------------------------------------------------------------------
+
+
 # step by step gh setup --------------------------------------------------------
+
 devtools::load_all()
 od <-
   sfx2sfg(
     eligible.sf = eligible.area
-    ,min.flows = 30
+    ,min.flows = 5
     ,tracts.or.groups = 'ct'
     ,base.dir = Sys.getenv('drop_dir')
     ,sfg.dir = 'sfg-processed/orig_dest_annual/'
@@ -65,13 +71,302 @@ ghsf <- spatialize.graph(
 
 fgh <- apply.flow.filters(
   ghsf
+  ,min.flows = 5
+  , tie.str.deciles = 7
   ,frame.sf = frame.area
   ,max.dst = max.distance
 )
-
 fgh
 
+# consider alternate flow trims ------------------------------------------------
+full.gh
+ghsf
+fgh
+ghsf %>% filter(dst > max.distance)
+ghsf %>% pull(tstr) %>% quantile(seq(0,1,.1))
+ghsf %>% filter(tstr > .001)
 
+fgh %>% filter(tstr > .01)
+
+# map stl --------------------------------------------------------------------------
+to.map <- fgh
+#to.map <- fgh %>% activate('nodes') %>% st_crop(frame.area)
+
+fgh
+lonlats <- to.map %>%
+  activate('nodes') %>%
+  as_tibble() %>%
+  st_sf() %>%
+  st_coordinates()
+
+ggflbase <- flow.map.base()
+
+devtools::load_all()
+
+stl.flow.map <- to.map %>%
+  ggraph(layout = lonlats ) +
+#  geom_edge_density(
+#    aes(edge_fill = n) ) +
+  geom_edge_fan(aes(edge_alpha =
+                      tstr
+                    ,edge_width =
+                      tstr
+                    )) +
+  scale_edge_alpha_continuous(guide = 'none'
+                              ,range = c(.1,1)) +
+  scale_edge_width_continuous(guide = 'none'
+                             ,range = c(.1, 1.5)) +
+  scale_color_discrete(guide = 'none')
+
+stl.flow.map + ggtitle('stl flow map')
+
+stl.flow.map + sfx2coord_sf(frame.area)
+
+
+
+# BGs --------------------------------------------------------------------------
+
+
+# step by step gh setup --------------------------------------------------------
+
+devtools::load_all()
+od <-
+  sfx2sfg(
+    eligible.sf = eligible.area
+    ,min.flows = 10
+    ,tracts.or.groups = 'bg'
+    ,base.dir = Sys.getenv('drop_dir')
+    ,sfg.dir = 'sfg-processed/orig_dest_annual/'
+    ,year= 2019
+    ,trim.loops = T)
+
+
+full.gh <- sfg2gh(
+  od
+  ,directed = F
+)
+
+devtools::load_all()
+ghsf <- spatialize.graph(
+  full.gh
+  ,frame.sf = frame.area
+  ,tracts.or.groups = 'bg'
+  ,directed = F
+)
+
+fgh <- apply.flow.filters(
+  ghsf
+  ,min.flows = 5
+  , tie.str.deciles = 8
+  ,frame.sf = frame.area
+  ,max.dst = max.distance
+)
+ghsf
+fgh
+
+# consider alternate flow trims ------------------------------------------------
+full.gh
+ghsf
+fgh
+
+fgh %>% filter(tstr > .01)
+
+# map stl --------------------------------------------------------------------------
+to.map <- fgh
+#to.map <- fgh %>% activate('nodes') %>% st_crop(frame.area)
+
+fgh
+lonlats <- to.map %>%
+  activate('nodes') %>%
+  as_tibble() %>%
+  st_sf() %>%
+  st_coordinates()
+
+ggflbase <- flow.map.base()
+
+devtools::load_all()
+
+stl.flow.map <- to.map %>%
+  ggraph(layout = lonlats ) +
+    geom_edge_density(
+      aes(edge_fill = tstr) ) +
+  geom_edge_fan(aes(edge_alpha =
+                      tstr
+                    ,edge_width =
+                      tstr
+  )) +
+  scale_edge_alpha_continuous(guide = 'none'
+                              ,range = c(.2, 1)) +
+  scale_edge_width_continuous(guide = 'none'
+                              ,range = c(.2, 2)) +
+  scale_color_discrete(guide = 'none')
+
+#stl.flow.map + ggtitle('stl flow map')
+
+stl.flow.map +
+  sfx2coord_sf(frame.area) +
+  divlyrs
+
+
+# experiments ------------------------------------------------------------------
+
+
+# Using ragg -------------------------------------------------------------------
+library(ragg)
+#sdir <- 'R/mapping flows/ragg/'
+f <- knitr::fig_path('.png')
+ragg::agg_png(f
+              ,width = 8
+              ,height = 6
+              ,res = 300
+              ,units = 'in'
+              ,scaling = 1)
+stl.flow.map +
+  sfx2coord_sf(frame.area) +
+  divlyrs
+invisible(dev.off())
+# that's cool and fast and seems like good standardisation
+
+# stamen or google basemap -----------------------------------------------------
+library(ggmap)
+?register_google
+
+lon.lat.ctr <-
+  ctr %>%
+  st_transform(4326) %>%
+  st_coordinates()
+
+lon.lat.ctr %>%
+  as.vector() %>%
+  setNames(c('lon', 'lat'))
+
+?ggmap::get_googlemap()
+ggm <- ggmap::get_googlemap(
+  center = c(lon.lat.ctr %>%
+               as.vector() %>%
+               setNames(c('lon', 'lat')))
+)
+
+bbx <- st_bbox(st_transform(frame.area
+                     ,4326))
+
+sttm <- ggmap::get_stamenmap(
+  bbox = c(left = bbx[['xmin']],
+           bottom = bbx[['ymin']],
+           right = bbx[['xmax']],
+           top = bbx[['ymax']])
+  ,zoom = 12
+  ,maptype = 'toner-background'
+  ,crop = T
+)
+?coord_sf
+ggmap(ggm) +
+  sfx2coord_sf(st_transform(frame.area
+                            ,4326))
+
+# reproject and re retrieve lonlats
+to.map <- to.map %>% st_transform(4326)
+lonlats <- to.map %>%
+  activate('nodes') %>%
+  as_tibble() %>%
+  st_sf() %>%
+  st_coordinates()
+
+stamen.stl <-
+  ggmap(sttm
+      ,base_layer =
+        ggraph(to.map, layout = lonlats ) ) +
+  #sfx2coord_sf(st_transform(frame.area
+  #                          ,4326)) +
+  #geom_edge_density(
+  #  aes(edge_fill = tstr) ) +
+  geom_edge_fan(aes(edge_alpha =
+                      log(tstr)
+                    ,edge_width =
+                      log(tstr)
+                    #,edge_color =
+                    #  log(tstr)
+  ),color = '#007c91'
+  ) +
+  scale_edge_alpha_continuous(guide = 'none'
+                              ,range = c(.1, 1)) +
+  scale_edge_width_continuous(guide = 'none'
+                              ,range = c(.1, 1.5)) +
+  #scale_edge_color_viridis(option = 'A') +
+  scale_color_discrete(guide = 'none') +
+  theme_void()
+#stamen.stl
+f <- knitr::fig_path('.png'
+                     ,number =2)
+ragg::agg_png(f
+              ,width = 8
+              ,height = 6
+              ,res = 300
+              ,units = 'in'
+              ,scaling = 1)
+stamen.stl
+invisible(dev.off())
+
+
+# variants using ragg and stamen -----------------------------------------------
+
+# different filters
+fgh <- apply.flow.filters(
+  ghsf
+  ,min.flows = 5
+  , tie.str.deciles = 8
+  ,frame.sf = frame.area
+  ,max.dst = max.distance
+)
+fgh
+to.map <- fgh
+
+# reproject and re retrieve lonlats
+to.map <- to.map %>% st_transform(4326)
+lonlats <- to.map %>%
+  activate('nodes') %>%
+  as_tibble() %>%
+  st_sf() %>%
+  st_coordinates()
+
+sttm %>%
+  divM::conic.transform()
+
+
+stamen.stl <-
+  ggmap(sttm
+        ,base_layer =
+          ggraph(to.map, layout = lonlats ) ) +
+  #sfx2coord_sf(st_transform(frame.area
+  #                          ,4326)) +
+  #geom_edge_density(
+  #  aes(edge_fill = tstr) ) +
+  geom_edge_fan(aes(edge_alpha =
+                      tstr
+                    ,edge_width =
+                      tstr
+                    #,edge_color =
+                    #  log(tstr)
+  ),color = '#007c91'
+  ) +
+  scale_edge_alpha_continuous(guide = 'none'
+                              ,range = c(.5, 1)) +
+  scale_edge_width_continuous(guide = 'none'
+                              ,range = c(.1, 1.2)) +
+  #scale_edge_color_viridis(option = 'A') +
+  scale_color_discrete(guide = 'none') +
+  theme_void()
+#stamen.stl
+f <- knitr::fig_path('.png'
+                     ,number =3)
+ragg::agg_png(f
+              ,width = 4
+              ,height = 3
+              ,res = 550
+              ,units = 'in'
+              ,scaling = 1)
+stamen.stl
+invisible(dev.off())
 
 # varying start plcs -----------------------------------------------------------
 

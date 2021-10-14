@@ -9,9 +9,9 @@ flow.map.base <- function() {
   require(ggraph)
   list(
     scale_edge_alpha_continuous(guide = 'none'
-                                ,range = c(.05,1))
+                                ,range = c(.1,1))
     ,scale_edge_width_continuous(guide = 'none'
-                                ,range = c(.05,2))
+                                ,range = c(.1,2))
     ,scale_color_discrete(guide = 'none')
     ,theme_void()
     )
@@ -58,7 +58,10 @@ get.div.layers <- function( bounds.sf
 #' water.
 #'
 #' TODO: I think main issue here is that including outside of the bounds can mess up
-#' what remains in the bounds...
+#' what remains in the bounds... -> actually I think it's an issue of plot size and
+#' the scale conversion to pixels.. Lines are thinner than a pixel and become
+#' invisible depending on plot size. Need to think about how to handle that.
+#' See: https://www.tidyverse.org/blog/2020/08/taking-control-of-plot-scaling/
 #'
 #' @param gh A graph object. Recreates based on `sfx` if not supplied
 #' @param edge.attr Edge attribute to map by. 'n' by default. If generating graph
@@ -98,9 +101,6 @@ flow.map.wrapper <- function(sfx
     st_sf() %>%
     st_coordinates()
 
-  # get bbox for crop
-  zoom.box <- st_bbox(bounds.area)
-
   ggbase <- flow.map.base()
 
   # transform if necessary
@@ -122,14 +122,32 @@ flow.map.wrapper <- function(sfx
                       ,edge_width =
                         ex)) +
     ggbase +
-    coord_sf( xlim =
-                c( zoom.box$xmin
-                   ,zoom.box$xmax)
-              , ylim =
-                c(zoom.box$ymin
-                  ,zoom.box$ymax)
-              ,expand = F
-    )
+    sfx2coord_sf(bounds.area)
 
   return(flow.map)
+}
+
+
+#' sfx2coord_sf
+#'
+#' ggplot2::coord_sf limits the bounds of a map made with ggplot. This function uses
+#' an `sf` object, and uses that to set the bounds of a ggplot, cropping other layers
+#' on the plot to the bounding box.
+#'
+#' @param sfx `sf` object to get bbox from
+#' @param expand passed onto `coord_sf`; whether to do a small buffer outside of box
+#'
+sfx2coord_sf <- function(sfx, expand = F) {
+
+  # get bbox for crop
+  zoom.box <- st_bbox(sfx)
+
+  coord_sf( xlim =
+              c( zoom.box$xmin
+                 ,zoom.box$xmax)
+            , ylim =
+              c(zoom.box$ymin
+                ,zoom.box$ymax)
+            ,expand = expand
+            )
 }
