@@ -23,7 +23,7 @@ composite.dirs[1] %>% list.files(recursive = T) %>% head()
 # only tract-level generated rn
 composite.dirs <- paste0(composite.dirs, '/tracts/')
 
-
+composite.dirs
 # helper function ---------------------------------------------------------
 
 #' clean.composites
@@ -56,12 +56,17 @@ load.clean.bind <- function(path, r.t = c('cz' , 'cbsa')) {
                   -any_of(drop.cols))) %>%
     map( ~geox::region.reorg( ., r.t )) %>%
     map( ~mutate(., across( c(geoid, rid)
-                          ,geox::fix.geoid )))
+                           ,geox::fix.geoid )))
 
   x <- do.call('rbind', x)
   return(x)
 }
 
+
+
+# to check sample -------------------------------------------------------------
+#composite.dirs[1] %>% list.files(pattern = 'cz', full.names = T) %>%
+#  `[`(1) %>% vroom::vroom()
 
 
 # read clean bind by region/dir -------------------------------------------
@@ -97,18 +102,13 @@ spcs %>%
   count(rt)
 # right because I didn't calculate flow weights for many CBSAs yet
 spcs %>%
-  filter(rt == 'cbsa') %>%
-  filter(is.na(inc.flww.composite))
+  filter(is.na(vis.flww.composite)) %>%
+  count(var) %>% arrange(desc(n))
 
 spcs %>%
-  filter(rt == 'cz') %>%
-  filter(is.na(inc.flww.composite))
+  filter(is.na(value)) %>%
+  count(rt,rid)
 
-
-# reminders: --------------------------------------------------------------
-
-# - I need to regenerate with full flwws for CBSAs
-# - I need to regenerate with rook and queen adjacencies
 
 # save --------------------------------------------------------------------
 

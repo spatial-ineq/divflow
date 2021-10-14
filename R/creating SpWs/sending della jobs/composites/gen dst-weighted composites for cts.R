@@ -200,8 +200,8 @@ Della.wrapper_dst.composite.by.region <- function(
     if(!exists(save.dir))
       dir.create(save.dir)
 
-    rids <- geox::add.rns(tibble(rt = region.type, rid = region.id ))
-    rids <- rids %>% paste0(collapse = '-')
+    rids <- divflow::region2identifiers( region.type = region.type
+                                ,region.id = region.id)
 
     save.pth <- paste0(save.dir, rids, '.csv')
 
@@ -295,6 +295,17 @@ cbsatracts.dstcomposites.dellajob <-
   )
 
 
+# check genr --------------------------------------------------------------
+sdir <-
+  paste0('/scratch/gpfs/km31/'
+         ,'adjacencies+proximities/spatial-composites/distance-composites/'
+         ,'tracts/'
+         )
+fns <- sdir %>% list.files()
+fns[grepl('cz', fns)] %>% length()
+fns[grepl('cbsa', fns)] %>% length()
+geox::rpops %>% filter(pop >= 25e3) %>% count(rt)
+fns[grepl('cbsa', fns)][1] %>% paste0(sdir, .) %>% vroom::vroom()
 
 # scratch -----------------------------------------------------------------
 

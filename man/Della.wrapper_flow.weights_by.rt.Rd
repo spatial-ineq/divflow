@@ -9,11 +9,10 @@ Della.wrapper_flow.weights_by.rt(
   cbsa_id = NULL,
   agg2tracts = T,
   drop.loops = T,
-  weight.floor = 0.01,
+  weight.floor = 0.001,
   sfg.dir,
   year = "2019",
-  save.dir = NULL,
-  list.colms = T
+  save.dir = NULL
 )
 }
 \arguments{

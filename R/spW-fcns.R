@@ -211,93 +211,23 @@ Della.wrapper_flow.weights_dst.cutoff <- function(cz
 }
 
 
-#' Della.wrapper_flow.weights_by.rt
+
+
+# helpers -----------------------------------------------------------------
+
+#' region2identifiers
 #'
-#' Wrapper function to generate all flow weights by either CZ or CBSA.
+#' Turns region.type and region.id into a cleaned & concatenated set of
+#' identifiers, which I use for partial saves.
 #'
-#' @inheritParams get.flow.weights.within.distance
-#' @param list.colms whether to return list columns (or tibble colms)
-#'
-Della.wrapper_flow.weights_by.rt <- function(
-  cz_id = NULL
-  ,cbsa_id = NULL
-  ,agg2tracts = T
-  ,drop.loops = T
-  ,weight.floor = .01
-  ,sfg.dir
-  ,year = '2019'
-  ,save.dir = NULL
-  ,list.colms = T
-) {
+#' @export region2identifiers
+region2identifiers <- function(region.type, region.id) {
 
-  if(is.null(cbsa_id))
-    czs2load <- cz_id
-  else
-    czs2load <- geox::rx %>%
-      filter(cbsa %in% cbsa_id) %>%
-      pull(cz) %>% unique()
+  requireNamespace('geox')
+  rids <- geox::add.rns(tibble(rt = region.type, rid = region.id ))
+  rids <- rids %>% paste0(collapse = '-')
 
-  # sfg load
-  sfg <- sfg.seg::read.sfg.CZs(czs2load,
-                               sfg.dir = sfg.dir,
-                               year = year)
-
-  # subset to trips w/in region (cz/cbsa)
-  sfg <- geox::geosubset(sfg
-                         ,subset.cols = c('origin', 'dest')
-                         ,cz = cz_id
-                         ,cbsa = cbsa_id)
-
-  # agg2 tracts
-  if(agg2tracts)
-    sfg <- sfg.seg::cbg.flows2tracts(sfg)
-
-  # drop loops if appropriate
-  if(drop.loops)
-    sfg <- sfg %>% filter(origin != dest)
-
-
-  # get inc and visited weights
-  inc.flwws <- sfg %>%
-    group_by(dest) %>%
-    mutate(flww = n / sum(n)) %>%
-    ungroup() %>%
-    filter(flww >= weight.floor) %>%
-    select(geoid = dest, j = origin, flww) %>%
-    nest(inc.flwws = c(j, flww))
-
-  vis.flwws <- sfg %>%
-    group_by(origin) %>%
-    mutate(flww = n / sum(n)) %>%
-    ungroup() %>%
-    filter(flww >= weight.floor) %>%
-    select(geoid = origin, j = dest, flww) %>%
-    nest(vis.flwws = c(j, flww))
-
-  flwws <- full_join(inc.flwws, vis.flwws)
-
-  # browser()
-
-  if(!is.null(save.dir)) {
-    if(!exists(save.dir))
-      dir.create(save.dir, recursive = T)
-
-    fn <- geox::get.region.identifiers( cz = cz_id
-                                        ,cbsa = cbsa_id) %>%
-      paste(collapse = '-')
-
-    write_rds(flwws
-              ,file = paste0(save.dir
-                             ,fn
-                             ,'-flow-weights.rds'))
-  }
-
-  return(flwws)
-}
-
-
-tbl2named.list <- function(x) {
-
-  as.vector(x$flww) %>%
-  setNames(x$j)
+  # transform '/'s in identifier (sometimes appear in CBSA names)
+  rids <- rids %>% gsub('\\/', '-', .)
+  return(rids)
 }
