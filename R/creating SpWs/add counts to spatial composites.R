@@ -8,7 +8,8 @@ sf_use_s2(T)
 options(tigris_use_cache = TRUE)
 
 # dropbox dir or della base dir
-ddir <- Sys.getenv('drop_dir')
+ddir <- # Sys.getenv('drop_dir')
+  '/scratch/gpfs/km31/'
 
 # notes ------------------------------------------------------------------------
 
@@ -49,7 +50,7 @@ splags <- splags %>%
 # avail vars
 splags %>% count(var) %>% pull(var)
 # drop the fam vars / any others ?
-
+splags %>% filter(var == 'perc_bl') %>% filter(is.na(inc.flww.composite))
 
 # get flow/res --------------------------------------------------------------
 
@@ -86,7 +87,16 @@ resl
 # gen res/flow counts by var -------------------------------------------------------------
 
 # these are easy, i just multiply %flow composite by total flows or total pop/hh
-ccs <- splags %>%
+
+# first drop vars you didn't get other counts for
+selags <- splags %>% filter(var %in%  c('perc_bl', 'perc_wh'
+                              ,'perc_hsp', 'perc_asian'
+                              ,'perc_below.pov', 'perc_above.pov'))
+
+# nas pre-join
+selags %>% map_dbl( ~sum(is.na(.x)) )
+
+ccs <- selags %>%
   left_join(tots)
 
 ccs <- ccs %>%
@@ -98,251 +108,203 @@ ccs <- ccs %>%
       vis.flww.composite * total.visits.from
   )
 
-# a check
+
+# checks ------------------------------------------------------------------
 ccs %>%
   geox::geosubset(cz = '24701') %>%
   filter(var == 'perc_bl') %>%
   select(1,var,value, matches('^n|flw'))
 
+# missing values?
+ccs %>%  map_dbl( ~sum(is.na(.x)) )
+# missing regions (issue fixed):
+missing <- ccs %>% anti_join(tots) %>% select(rt, rid) %>% distinct()
+missing %>% geox::add.rns()
+tots %>% filter(rid %in% missing$rid & rt == 'cbsa')
+
+
+# trims -------------------------------------------------------------------
+
+# get ~just~ counts from ccs.
+ccs <- ccs %>%
+  select(geoid,rt,rid,pop,hh,var,value,weight,matches('^n\\.'))
+
+# trim to demographic and pov vars
+ccs <- ccs %>%
+  filter(var %in% c('perc_bl', 'perc_wh'
+                           ,'perc_hsp', 'perc_asian'
+                           ,'perc_below.pov', 'perc_above.pov'))
 
 # prx counts -------------------------------------------------------------------
 
-# these are more of a pain, because the weights should be: row-standardized
-# population/hh * decayed distance or adjacency. And i don't have those to just merge
-# in.
+# generated in della
+prx.count.dir <- '/scratch/gpfs/km31/adjacencies+proximities/spatial-composites/composite-counts/'
 
+fns <- prx.count.dir %>% list.files(full.names = T)
+fns[1]  %>% vroom::vroom()
 
-# prx process scratch ----------------------------------------------------------
+read.add.region.info <- function(.rt, .rid, .dir) {
 
-# process is:
+  fn <- .dir %>%
+    list.files(pattern = glue::glue('{.rt}-{.rid}')
+               ,full.names = T)
+  if(length(fn) == 0)
+    return(glue::glue('missing at {.rt}-{.rid}'))
 
-# get spatial weights
-spw.dir <- paste0(ddir, 'adjacencies+proximities/')
-spwfn <- spw.dir %>% list.files(pattern = 'tract-adjacencies.rds')
-spws <- paste0(spw.dir, spwfn) %>% readRDS()
+  x <- fn %>%
+    vroom::vroom() %>%
+    select(-any_of('...1')) %>%
+    mutate(rt = .rt, rid = .rid
+           ,.after = geoid)
 
-spws
-
-# make a tible( it should already be a tibble...)
-spws <- spws %>%
-  mutate(dists =
-           map(dists,
-               ~tibble(
-                 j = names(.)
-                 ,dist = .
-               ))
-         )
-
-# for scratch, trim to sample
-smpl <- spws %>% geox::geosubset(cz = '24701')
-
-smpl[1,]$dists
-splags
-
-smpl <- smpl %>%
-  unnest(dists) %>%
-  mutate( negexp.decay =
-           neg.exp( as.numeric(dist) )
-         ,bisq.8km.decay =
-           bisq.dist2weights( as.numeric(dist), cutoff = 8 )
-         )
-
-
-# get distance-from-i-weighted avg pop/hh of neighboring tracts. Then multiply
-# dist/pop weights by value in those tracts, and sum over i's.
-
-
-# merge to get % value and total pop/hh at each j
-js <- smpl %>%
-  select(i = geoid, j, matches('dist|decay')) %>%
-  left_join(resl
-            , by = c('j' = 'geoid'))
-
-smpl %>%
-  filter(i != j ) %>%
-  geox::geosubset(subset.cols = 'j', cz = '24701') %>%
-  mutate( across(matches('decay$')
-                 , ~ .x / sum(.x)
-  ))
-
-js
-
-# remove where i == j
-js <- js %>%
-  filter(i != j ) %>%
-  geox::geosubset(subset.cols = 'j', cz = '24701')
-
-# row standardise decays
-js <- js %>%
-  group_by(i, var) %>%
-  mutate( across(matches('decay$')
-                 , ~ .x / sum(.x)
-  ))
-
-# check
-js %>% group_by(i, var) %>% summarise(across(matches('decay$')
-                                             , sum ))
-
-n.dstsst <-
-  js %>%
-  mutate( across(matches('decay$')
-                 , ~ .x * weight * value
-  )) %>%
-  group_by(i, var) %>%
-  summarise(across(matches('decay$')
-                   , list(n = sum)
-                   , .names = '{.fn}.{.col}'))
-
-
-# laugh test:
-n.dstsst %>%
-  filter(substr(var,1,4) == 'perc')
-
-ccs %>%
-  filter(geoid == '17133600101') %>%
-  filter(substr(var,1,4) == 'perc') %>%
-  select(1:4,var, n.value)
-
-
-
-# functionalize ----------------------------------------------------------------
-
-devtools::load_all()
-
-#' calc.proxim.counts
-#'
-#'
-calc.proxim.counts <- function(cz = NULL, cbsa = NULL,
-                               spatial.weights = spws,
-                               long.res.chars = resl) {
-
-  lw <- spatial.weights %>%
-    geox::geosubset(cz = cz, cbsa = cbsa)
-
- #  browser()
-
-  lw <- lw %>%
-    unnest(dists) %>%
-    mutate( negexp.decay =
-              neg.exp( as.numeric(dist) )
-            ,bisq.8km.decay =
-              bisq.dist2weights( as.numeric(dist), cutoff = 8 )
-    )
-
-  # get distance-from-i-weighted avg pop/hh of neighboring tracts. Then multiply
-  # dist/pop weights by value in those tracts, and sum over i's.
-
-  # merge to get % value and total pop/hh at each j
-  js <- lw %>%
-    left_join(long.res.chars
-              , by = c('j' = 'geoid'))
-
-  # remove where i == j, and trim to js in region
-  js <- js %>%
-    select(i = geoid, j,
-           matches('dist|decay'),
-           var, value, weight
-           ) %>%
-    filter(i != j ) %>%
-    geox::geosubset(subset.cols = 'j',
-                    cz = cz, cbsa = cbsa)
-
-  # row standardise decays
-  js <- js %>%
-    group_by(i, var) %>%
-    mutate( across(matches('decay$')
-                   , ~ .x / sum(.x)
-    ))
-
-  n.dsts <-
-    js %>%
-    mutate( across(matches('decay$')
-                   , ~ .x * weight * value
-    )) %>%
-    group_by(i, var) %>%
-    summarise(across(matches('decay$')
-                     , list(n = sum)
-                     , .names = '{.fn}.{.col}')) %>%
-    ungroup() %>%
-    rename(geoid = i)
-
-  return(n.dsts)
+  return(x)
 }
 
-#rm(js)
+# individual checks
+"
+read.add.region.info('cbsa', '10100'
+                     ,prx.count.dir)
 
-tmp <- calc.proxim.counts(cz= '24701'
-                          ,long.res.chars =
-                            filter(resl
-                                   ,var %in% c('perc_bl', 'perc_wh'
-                                               ,'perc_hsp', 'perc_asian'))
-                          )
-tmp
-n.dstsst %>% filter(var %in% c('perc_bl', 'perc_wh'
-                   ,'perc_hsp', 'perc_asian'))
-
-ccs %>% filter(geoid == '17133600101') %>% filter(var %in% c('perc_bl', 'perc_wh'
-                                                         ,'perc_hsp', 'perc_asian'))
+read.add.region.info('cz', '19700'
+                     ,prx.count.dir) %>%
+  map_dbl(~sum(is.na(.)) / length(.) )
 
 
-# map over regions czs ---------------------------------------------------------------
+read.add.region.info('cz', '19400'
+                     ,prx.count.dir) %>%
+  map_dbl(~sum(is.na(.)) / length(.) )
+"
 
-# merge into ccs.
+# read all
+allrs <- geox::rx %>%
+  select(cz,cbsa) %>%
+  pivot_longer(c(cz, cbsa)
+               ,names_to = 'rt'
+               ,values_to = 'rid') %>%
+  distinct()
+
+tmp <- allrs # %>% tail(40)
+
+prx.ccs <- map2(tmp$rt, tmp$rid,
+                    ~read.add.region.info(.x, .y
+                                          ,prx.count.dir)
+                    )
+
+# check where they read in wrong?
+index <- prx.ccs %>% map_dbl( ncol)
+prx.ccs[which(index != 6)]
+
+# fix column types and rbind
+prx.ccs <- prx.ccs %>%
+  map( ~mutate(.x,
+              across(matches('^n\\.')
+                     ,as.numeric )
+              ,across(c(geoid, rt, rid, var)
+                      ,as.character )
+              )) %>%
+  do.call('rbind', .)
+
+prx.ccs
+
+# adj counts --------------------------------------------------------------
+
+adj.count.dir <- '/scratch/gpfs/km31/adjacencies+proximities/spatial-composites/adj-composite-counts/'
+
+adj.ccs <- map2(allrs$rt, allrs$rid,
+                    ~read.add.region.info(.x, .y
+                                          ,adj.count.dir)
+                    )
+# check where they read in wrong?
+index <- adj.ccs %>% map_dbl( ncol)
+adj.ccs[which(index != 5)]
+
+# fix column types and rbind
+adj.ccs <- adj.ccs %>%
+  map( ~mutate(.x,
+               across(matches('^n\\.')
+                      ,as.numeric )
+               ,across(c(geoid, rt, rid, var)
+                       ,as.character )
+  )) %>%
+  do.call('rbind', .)
+
+adj.ccs
+
+# combine -----------------------------------------------------------------
+
+ccs
+prx.ccs
+adj.ccs
+
+spcounts <- purrr::reduce(list(ccs,
+                   prx.ccs,
+                   adj.ccs)
+              ,full_join)
+
+spcounts
+spcounts %>% map_dbl( ~sum(is.na(.x)) )
+
+list.dirs('R/creating SpWs/')
+# save backup
+"
+write.csv(spcounts,
+          file = 'R/creating SpWs/.intermediate-saves/spcounts-prechecks.csv'
+          ,row.names = F)
+"
 
 
+# check -------------------------------------------------------------------
 
-calc.proxim.counts
+spcounts
+spcounts %>% map_dbl(~sum(is.na(.x)) / length(.x))
 
-# a more straightforward way: --------------------------------------------------
+# remove NA cbsas
+spcounts %>%
+  filter(is.na(rid)) %>%
+  count(rt)
+
+spcounts <- spcounts %>%
+  filter(!is.na(rid))
+
+spcounts %>%  map_dbl(~sum(is.na(.x)) / length(.x)  )
+spcounts %>% filter_at(vars(everything()), any_vars(is.na(.))) %>% count(geoid)
+
+tmpc <- spcounts %>%
+  filter(rid == '00100' &
+           rt == 'cz' &
+           var %in% 'perc_bl')
+
+tmpp <- splags %>%
+  filter(rid == '00100' &
+           rt == 'cz' &
+           var %in% 'perc_bl')
 
 
-n.dsts
-n.dsts2
+spcounts %>%
+  filter(rid == '19700' &
+           rt == 'cz' &
+           var %in% 'perc_bl') %>%
+  rename(perc = value) %>%
+  pivot_longer(matches('^n\\.')
+               ,names_prefix = 'n.'
+               ,names_to = 'spatial.lag.type'
+               ,values_to = 'spatial.lag.value') %>%
+  geox::attach.geos() %>%
+  st_sf() %>%
+  ggplot() +
+  geom_sf(aes(fill = spatial.lag.value)
+          , color = NA) +
+  scale_fill_viridis_c() +
+  facet_wrap(vars(spatial.lag.type)) +
+  theme_void() +
+  theme(legend.position = 'bottom')
 
-across(matches('decay$')
-                , list(decayed.popw =
-                         stats::weighted.mean(weight, ))
-         )
 
+# write final copy --------------------------------------------------------
 
-
-# scratch ----------------------------------------------------------------------
-
-# merge to get % value and total pop/hh at each j
-js <- smpl %>%
-  select(i = geoid, j, matches('decay')) %>%
-  left_join(
-    select(resl
-           , geoid, var, value)
-    , by = c('j' = 'geoid')) %>%
-  left_join(distinct(select(resl
-                            , geoid, var, pop, hh, weight))
-            , by = c('i' = 'geoid', 'var'))
-
-# form and row-standardize wegiths
-js <- js %>%
-  mutate( negexp.w =
-            negexp.decay * weight
-          ,bisq.8km.w =
-            bisq.8km.decay * weight)
-
-js <- js %>%
-  group_by(i, var) %>%
-  mutate( snegexp.w =
-            negexp.w / sum(negexp.w)
-          ,sbisq.8km.w =
-            bisq.8km.w / sum(bisq.8km.w)
+save.path <- '/scratch/gpfs/km31/adjacencies+proximities/spatial-composites/full-spatial-composite-counts-by-rt.csv'
+spcounts %>%
+  write.csv(
+     file = save.path
+    ,row.names = F
   )
-
-# checks
-js %>% group_by(i, var) %>% summarise(across(matches('.w$')
-                                             , sum ))
-js %>% filter(var == 'perc_bl')
-splags
-# multiply standardized flow weights for each j by variable % at each j and the
-# total incoming to or visited from at i
-js %>%
-  group_by(i, var) %>%
-  mutate(bisq.8km.n =
-           sbisq.8km.w * )
-
