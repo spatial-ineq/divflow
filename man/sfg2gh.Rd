@@ -12,8 +12,6 @@ sfg2gh(sfg, directed = F, ...)
 \item{directed}{whether to leave directed or make undirected (which aggregates
 trips to/from the same tracts, rather than duplicating the O-D pair for each
 direction.)}
-
-\item{tracts.or.groups}{Aggregate to census tract (ct) or leave at block group (bg)}
 }
 \description{
 From a origin-destination data.frame representing safegraph data, turn it into a

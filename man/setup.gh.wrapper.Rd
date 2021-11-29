@@ -4,38 +4,31 @@
 \alias{setup.gh.wrapper}
 \title{setup.gh.wrapper}
 \usage{
-setup.gh.wrapper(
-  sfx,
-  map.buffer = units::set_units(5, "miles"),
-  max.dst = units::set_units(5, "miles"),
-  min.flows = 10,
-  min.tie.str = NULL,
-  directed = F,
-  tracts.or.groups = c("ct", "bg"),
-  year = 2019,
-  base.dir = Sys.getenv("drop_dir"),
-  sfg.dir = "sfg-processed/orig_dest_annual/",
-  crs = "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45",
-  ...
-)
+setup.gh.wrapper(sfx = NULL, cz = NULL, cbsa = NULL, ...)
 }
 \arguments{
-\item{sfx}{an \code{sf} object to crop to and use CRS from. Nodes outside the bbox of
+\item{...}{
+  Arguments passed on to \code{\link[=sfx2sfg]{sfx2sfg}}, \code{\link[=sfg2gh]{sfg2gh}}, \code{\link[=spatialize.graph]{spatialize.graph}}, \code{\link[=apply.flow.filters]{apply.flow.filters}}
+  \describe{
+    \item{\code{sfx}}{an sf object within bounds of which to load all flows.}
+    \item{\code{sfg}}{OD dataframe}
+    \item{\code{directed}}{whether to leave directed or make undirected (which aggregates
+trips to/from the same tracts, rather than duplicating the O-D pair for each
+direction.)}
+    \item{\code{gh}}{a graph, as setup by \code{sfg2gh}}
+    \item{\code{frame.sf}}{an \code{sf} object to crop to and use CRS from. Nodes outside the bbox of
 this area will be trimmed. Defaults to Lambert conformal conic projection if
 left null. (Why do I have all this complexity instead of just using coord_sf
 when mappi ng? Think I need to revise.. I think b/c i felt it allowed for more
 controlled trimming but..)}
-
-\item{min.tie.str}{If not null, floor for tie strenght}
-
-\item{directed}{whether to leave directed or make undirected (which aggregates
-trips to/from the same tracts, rather than duplicating the O-D pair for each
-direction.)}
-
-\item{tracts.or.groups}{Aggregate to census tract (ct) or leave at block group (bg)}
+    \item{\code{tracts.or.groups}}{Aggregate to census tract (ct) or leave at block group (bg)}
+    \item{\code{min.tie.str}}{If not null, floor for tie strength}
+    \item{\code{min.flows}}{minimum flows}
+    \item{\code{tie.str.deciles}}{If not null, number of deciles of tie str to keep after all
+other trims}
+  }}
 }
 \description{
-From a \code{sf} object that will center graph, a buffer distance to define area around
-center, and a set of trimming parameters, sets up a graph as all nodes surrounding
+From a cz/cbsa identifier or an \code{sf} object, sets up a graph as all nodes surrounding
 the area. Built to create a graph within a bounding box.
 }

@@ -24,16 +24,7 @@ or perc.from.origin is for directed graph.}
 \item{...}{
   Arguments passed on to \code{\link[=setup.gh.wrapper]{setup.gh.wrapper}}
   \describe{
-    \item{\code{directed}}{whether to leave directed or make undirected (which aggregates
-trips to/from the same tracts, rather than duplicating the O-D pair for each
-direction.)}
-    \item{\code{tracts.or.groups}}{Aggregate to census tract (ct) or leave at block group (bg)}
-    \item{\code{sfx}}{an \code{sf} object to crop to and use CRS from. Nodes outside the bbox of
-this area will be trimmed. Defaults to Lambert conformal conic projection if
-left null. (Why do I have all this complexity instead of just using coord_sf
-when mappi ng? Think I need to revise.. I think b/c i felt it allowed for more
-controlled trimming but..)}
-    \item{\code{min.tie.str}}{If not null, floor for tie strenght}
+    \item{\code{}}{}
   }}
 }
 \description{

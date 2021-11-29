@@ -16,17 +16,17 @@ spatialize.graph(
 \arguments{
 \item{gh}{a graph, as setup by \code{sfg2gh}}
 
+\item{frame.sf}{an \code{sf} object to crop to and use CRS from. Nodes outside the bbox of
+this area will be trimmed. Defaults to Lambert conformal conic projection if
+left null. (Why do I have all this complexity instead of just using coord_sf
+when mappi ng? Think I need to revise.. I think b/c i felt it allowed for more
+controlled trimming but..)}
+
 \item{tracts.or.groups}{Aggregate to census tract (ct) or leave at block group (bg)}
 
 \item{directed}{whether to leave directed or make undirected (which aggregates
 trips to/from the same tracts, rather than duplicating the O-D pair for each
 direction.)}
-
-\item{sfx}{an \code{sf} object to crop to and use CRS from. Nodes outside the bbox of
-this area will be trimmed. Defaults to Lambert conformal conic projection if
-left null. (Why do I have all this complexity instead of just using coord_sf
-when mappi ng? Think I need to revise.. I think b/c i felt it allowed for more
-controlled trimming but..)}
 }
 \description{
 Spatializes a graph based on the node \code{name}s. Names should align with geoids for

@@ -2,6 +2,26 @@
 
 # setting up graphs -------------------------------------------------------------
 
+#' rid2sfg
+#'
+#' @inheritDotParams load.sfg
+#'
+rid2sfg <- function(cz = NULL, cbsa = NULL
+                    , ...) {
+
+  require(tidyverse)
+  requireNamespace('sfg.seg')
+  requireNamespace('geox')
+
+  .countyfps <- geox::x2cos(cz=cz, cbsa = cbsa)
+  .czs <- geox::rx %>% filter(countyfp %in% .countyfps) %>% pull(cz) %>% unique()
+
+  sfg <- load.sfg(.czs, ...)
+
+  return(sfg)
+}
+
+
 
 #' sfx2sfg
 #'
@@ -10,16 +30,11 @@
 #' for annual, but we could make this monthly. If you want to start with just CZs,
 #' just use sfg.seg::read.sfg.CZs.
 #'
-#' @param eligible.sf an sf object within bounds of which to load all flows.
+#' @param sfx an sf object within bounds of which to load all flows.
+#' @inheritDotParams load.sfg
 #'
 #' @export sfx2sfg
-sfx2sfg <- function( eligible.sf
-                     ,min.flows = 10
-                     ,tracts.or.groups = c('ct', 'bg')
-                     ,trim.loops = T
-                     ,year = 2019
-                     ,base.dir = Sys.getenv('drop_dir')
-                     ,sfg.dir = 'sfg-processed/orig_dest_annual/'
+sfx2sfg <- function( sfx
                      , ...) {
 
   require(tidyverse)
@@ -34,24 +49,49 @@ sfx2sfg <- function( eligible.sf
   ovcos <- st_crop(cos
                    ,eligible.sf)
 
-  czs2load <-
+  .czs <-
     geox::rx %>%
-    filter(countyfp %in% ovcos$GEOID)
+    filter(countyfp %in% ovcos$GEOID) %>%
+    pull(cz) %>% unique()
 
-  czs2load <- unique(czs2load$cz)
+  sfg <- load.sfg(.czs, ...)
 
-  sfg <- sfg.seg::read.sfg.CZs(czs2load
+  return(sfg)
+}
+
+
+#' load.sfg
+#'
+#' @param min.flows flow floor to immediately filter to. Default 10.
+#' @param trim.loops whether to trim loops, where origin==dest. Default true.
+#' @inheritParams spatialize.graph
+#' @param year year to load for. Default 2019.
+#' @param ddir,sfg.dir location of safegraph data, saved by cz.
+#'
+load.sfg <- function(.czs
+                     ,min.flows = 10
+                     ,tracts.or.groups = c('ct', 'bg')
+                     ,trim.loops = T
+                     ,year = '2019'
+                     ,ddir = Sys.getenv('drop_dir')
+                     ,sfg.dir = 'sfg-processed/orig_dest_annual/'
+                     ,...) {
+
+
+  sfg <- sfg.seg::read.sfg.CZs(.czs
                                ,sfg.dir =
-                                 paste0( base.dir
+                                 paste0( ddir
                                          ,sfg.dir)
+                               ,year = as.character(year)
   )
+
   sfg <- sfg %>%
     filter(n >= min.flows)
 
   # filter to trips starting and ending in overlapping CZs (not just starting there)
   sfg <- sfg %>%
     geox::geosubset(c('origin', 'dest')
-                    ,cz = czs2load)
+                    ,cz = .czs)
 
   # aggregate to tracts if appropriate
   # note this has to be done before trimming loops
@@ -64,6 +104,7 @@ sfx2sfg <- function( eligible.sf
     filter(origin != dest)
 
   return(sfg)
+
 }
 
 
@@ -75,7 +116,6 @@ sfx2sfg <- function( eligible.sf
 #' it's made undirected or left directed.
 #'
 #' @param sfg OD dataframe
-#' @param tracts.or.groups Aggregate to census tract (ct) or leave at block group (bg)
 #' @param directed whether to leave directed or make undirected (which aggregates
 #'   trips to/from the same tracts, rather than duplicating the O-D pair for each
 #'   direction.)
@@ -138,12 +178,13 @@ sfg2gh <- function(  sfg
 #' either block groups or tracts (default).
 #'
 #' @param gh a graph, as setup by `sfg2gh`
-#' @param sfx an `sf` object to crop to and use CRS from. Nodes outside the bbox of
+#' @param frame.sf an `sf` object to crop to and use CRS from. Nodes outside the bbox of
 #'   this area will be trimmed. Defaults to Lambert conformal conic projection if
 #'   left null. (Why do I have all this complexity instead of just using coord_sf
 #'   when mappi ng? Think I need to revise.. I think b/c i felt it allowed for more
 #'   controlled trimming but..)
 #' @inheritParams sfg2gh
+#' @param tracts.or.groups Aggregate to census tract (ct) or leave at block group (bg)
 #'
 #' @export spatialize.graph
 spatialize.graph <- function(gh
@@ -214,7 +255,8 @@ spatialize.graph <- function(gh
 #'
 #' @inheritParams spatialize.graph
 #' @inheritParams sfg2gh
-#' @param min.tie.str If not null, floor for tie strenght
+#' @param min.tie.str If not null, floor for tie strength
+#' @param min.flows minimum flows
 #' @param tie.str.deciles If not null, number of deciles of tie str to keep after all
 #'   other trims
 #'
@@ -226,7 +268,7 @@ apply.flow.filters <- function(gh
                                ,min.tie.str = NULL
                                ,min.flows = 10
                                ,max.dst = units::set_units(10, 'miles')
-                               ) {
+                               ,...) {
 
   require(tidygraph)
 
@@ -270,61 +312,40 @@ apply.flow.filters <- function(gh
 
 #' setup.gh.wrapper
 #'
-#' From a `sf` object that will center graph, a buffer distance to define area around
-#' center, and a set of trimming parameters, sets up a graph as all nodes surrounding
+#' From a cz/cbsa identifier or an `sf` object, sets up a graph as all nodes surrounding
 #' the area. Built to create a graph within a bounding box.
 #'
-#' @inheritParams sfx2sfg
-#' @inheritParams sfg2gh
-#' @inheritParams spatialize.graph
-#' @inheritParams apply.flow.filters
+#' @inheritDotParams sfx2sfg
+#' @inheritDotParams sfg2gh
+#' @inheritDotParams spatialize.graph
+#' @inheritDotParams apply.flow.filters
 #'
 #' @export setup.gh.wrapper
-setup.gh.wrapper <- function( sfx
-                              ,map.buffer = units::set_units(5, 'miles')
-                              ,max.dst = units::set_units(5, 'miles')
-                              ,min.flows = 10
-                              ,min.tie.str = NULL
-                              ,directed = F
-                              ,tracts.or.groups = c('ct', 'bg')
-                              ,year = 2019
-                              ,base.dir = Sys.getenv('drop_dir')
-                              ,sfg.dir = 'sfg-processed/orig_dest_annual/'
-                              ,crs = '+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45'
+setup.gh.wrapper <- function( sfx = NULL
+                              , cz = NULL, cbsa = NULL
                               ,...) {
 
-  ctr <- sfx %>%
-    st_transform(crs) %>%
-    st_centroid()
+  if(!is.null(sfx)){
+    sfg <- sfx2sfg(sfx = sfx
+                   , ...)
 
-  eligible.area <- ctr %>%
-    st_buffer(map.buffer + max.dst)
+    frame.sf <- st_bbox(sfx)
+  } else {
+    sfg <- rid2sfg(cz = cz, cbsa = cbsa,
+                   ...)
+    frame.sf <- NULL
+    }
 
-  frame.area <- ctr %>%
-    st_buffer(map.buffer)
+  gh <- sfg2gh(sfg = sfg
+               ,...)
 
-  sfg <- sfx2sfg(eligible.area
-                 ,min.flows = min.flows
-                 ,tracts.or.groups = tracts.or.groups
-                 ,base.dir = base.dir
-                 ,sfg.dir = sfg.dir
-                 ,year = year )
-
-  gh <- sfg2gh(sfg
-               ,directed = directed)
-
-  gh <- spatialize.graph(gh
-                         ,frame.sf = frame.area
-                         ,tracts.or.groups = tracts.or.groups
-                         ,directed = directed
-                         ,year = year)
+  gh <- spatialize.graph( gh = gh
+                         , frame.sf = frame.sf
+                         , ...)
 
   gh <- apply.flow.filters(gh
-                           ,frame.sf = frame.area
-                           ,directed = directed
-                           ,min.tie.str = min.tie.str
-                           ,min.flows = min.flows
-                           ,max.dst = max.dst)
+                           ,frame.sf = frame.sf
+                           ,...)
 
   return(gh)
 }
@@ -490,6 +511,16 @@ gh2edges <- function(gh) {
     as_tibble()
 }
 
+gh2coords <- function(gh) {
+  require(sf)
+  require(tidygraph)
+  gh %>%
+    gh2nodes() %>%
+    st_sf() %>%
+    st_coordinates()
+
+
+}
 
 
 # wrapper fcns -----------------------------------------------------------------

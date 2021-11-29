@@ -71,11 +71,12 @@ sbgs <- bgs %>%
 sbgs %>% mapview()
 
 # just b/c for visuals, remove islands in ad hoc way
-sbgs <- sbgs %>% filter(tractce != '002400') %>% st_transform(4326)
+sbgs <- sbgs %>% filter(tractce != '002400')
 
 bounds <- st_sf(geometry = st_union(sbgs))
 
-bounds <- st_transform(bounds, 4326)
+sbgs <- sbgs %>% st_transform(4326)
+bounds <- bounds %>% st_transform(4326)
 
 # load safegraph for area ------------------------------------------------------
 
@@ -464,61 +465,6 @@ bounds <- bounds %>% st_transform(4326)
 bounds %>% plot()
 bxgh <- setup.gh.wrapper(sfx = bounds)
 bxgh
-
-# get background for mapping
-sttm <- visaux::get.stamen.bkg(
-  bounds
-  , zoom = 12
-  ,maptype = 'toner-background'
-)
-
-# lonlat matrix for nodes
-lonlats <- bxgh %>%
-  activate('nodes') %>%
-  as_tibble() %>%
-  st_sf() %>%
-  st_coordinates()
-
-library(ggraph)
-
-
-ggraph::ggraph(bxgh
-                 ,layout = lonlats ) +
-  geom_edge_fan(aes(edge_alpha =
-                      tstr
-                    ,edge_width =
-                      tstr)) #+
-  flow.map.base()
-
-visaux::bbox2ggcrop(sfx = bounds
-                    )
-
-# visaux::ragg.wrapper()
-
-
-lbxgh <- bxgh %>% st_transform(4326)
-
-lonlats <- lbxgh %>%
-  activate('nodes') %>%
-  as_tibble() %>%
-  st_sf() %>%
-  st_coordinates()
-
-library(ggraph)
-
-ggmap(sttm,
-      base_layer =
-        ggraph::ggraph(lbxgh
-                       ,layout = lonlats ) )
-  ggraph::ggraph(lbxgh
-                 ,layout = lonlats ) +
-  geom_edge_fan(aes(edge_alpha =
-                      tstr
-                    ,edge_width =
-                      tstr)
-                ,inherit.aes = F) +
-  flow.map.base()
-
 
 
 # check older saved models -----------------------------------------------------

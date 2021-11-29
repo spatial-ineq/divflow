@@ -11,7 +11,8 @@ apply.flow.filters(
   frame.sf = NULL,
   min.tie.str = NULL,
   min.flows = 10,
-  max.dst = units::set_units(10, "miles")
+  max.dst = units::set_units(10, "miles"),
+  ...
 )
 }
 \arguments{
@@ -24,7 +25,15 @@ other trims}
 trips to/from the same tracts, rather than duplicating the O-D pair for each
 direction.)}
 
-\item{min.tie.str}{If not null, floor for tie strenght}
+\item{frame.sf}{an \code{sf} object to crop to and use CRS from. Nodes outside the bbox of
+this area will be trimmed. Defaults to Lambert conformal conic projection if
+left null. (Why do I have all this complexity instead of just using coord_sf
+when mappi ng? Think I need to revise.. I think b/c i felt it allowed for more
+controlled trimming but..)}
+
+\item{min.tie.str}{If not null, floor for tie strength}
+
+\item{min.flows}{minimum flows}
 }
 \description{
 Apply flow filters to a graph, as generated from \code{sfg2gh} and spatialized with
