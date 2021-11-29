@@ -6,10 +6,10 @@
 \usage{
 apply.flow.filters(
   gh,
-  frame.sf = NULL,
-  directed = F,
-  min.tie.str = NULL,
   tie.str.deciles = 5,
+  directed = F,
+  frame.sf = NULL,
+  min.tie.str = NULL,
   min.flows = 10,
   max.dst = units::set_units(10, "miles")
 )
@@ -17,11 +17,14 @@ apply.flow.filters(
 \arguments{
 \item{gh}{a graph, as setup by \code{sfg2gh}}
 
+\item{tie.str.deciles}{If not null, number of deciles of tie str to keep after all
+other trims}
+
 \item{directed}{whether to leave directed or make undirected (which aggregates
 trips to/from the same tracts, rather than duplicating the O-D pair for each
 direction.)}
 
-\item{min.str}{If null, filters to top quartile after other filters applied}
+\item{min.tie.str}{If not null, floor for tie strenght}
 }
 \description{
 Apply flow filters to a graph, as generated from \code{sfg2gh} and spatialized with

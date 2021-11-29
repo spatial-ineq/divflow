@@ -17,10 +17,13 @@ sfx2sfg <- function( eligible.sf
                      ,min.flows = 10
                      ,tracts.or.groups = c('ct', 'bg')
                      ,trim.loops = T
-                     ,year= 2019
+                     ,year = 2019
                      ,base.dir = Sys.getenv('drop_dir')
-                     ,sfg.dir = 'sfg-processed/orig_dest_annual/') {
+                     ,sfg.dir = 'sfg-processed/orig_dest_annual/'
+                     , ...) {
 
+  require(tidyverse)
+  require(sf)
   requireNamespace('sfg.seg')
   requireNamespace('geox')
 
@@ -50,7 +53,6 @@ sfx2sfg <- function( eligible.sf
     geox::geosubset(c('origin', 'dest')
                     ,cz = czs2load)
 
-
   # aggregate to tracts if appropriate
   # note this has to be done before trimming loops
   if(tracts.or.groups[1] == 'ct')
@@ -79,10 +81,10 @@ sfx2sfg <- function( eligible.sf
 #'   direction.)
 #'
 #' @export sfg2gh
-sfg2gh <- function(sfg,
-                   directed = F) {
+sfg2gh <- function(  sfg
+                   , directed = F
+                   , ...) {
 
-  requireNamespace('sfg.seg')
   require(tidygraph)
 
   # get flow str in dif ways based on directedness
@@ -126,7 +128,6 @@ sfg2gh <- function(sfg,
       )
   }
 
-
   return(gh)
 }
 
@@ -145,18 +146,20 @@ sfg2gh <- function(sfg,
 #' @inheritParams sfg2gh
 #'
 #' @export spatialize.graph
-spatialize.graph <- function( gh
-                              ,frame.sf = NULL
-                              ,tracts.or.groups = c('ct', 'bg')
-                              ,directed = F
-                              ,year = 2019) {
+spatialize.graph <- function(gh
+                             , frame.sf = NULL
+                             , tracts.or.groups = c('ct', 'bg')
+                             , directed = F
+                             , year = 2019
+                             , ...) {
+
+  requireNamespace('sfnetworks')
 
   # get geometries based on type
   if(tracts.or.groups[1] == 'ct')
     tigris.call <- tigris::tracts
   else
     tigris.call <- tigris::block_groups
-
 
   eligible.ids <-
     gh %>% activate('nodes') %>% as_tibble()
@@ -217,20 +220,21 @@ spatialize.graph <- function( gh
 #'
 #' @export apply.flow.filters
 apply.flow.filters <- function(gh
-                               ,frame.sf = NULL
-                               ,directed = F
-                               ,min.tie.str = NULL
                                ,tie.str.deciles = 5
+                               ,directed = F
+                               ,frame.sf = NULL
+                               ,min.tie.str = NULL
                                ,min.flows = 10
                                ,max.dst = units::set_units(10, 'miles')
-) {
+                               ) {
 
   require(tidygraph)
 
   # browser()
 
   sfe <- gh %>% activate('edges') %>% as_tibble()
-  if(! 'dst' %in% colnames(sfe))
+
+  if(! 'dst' %in% colnames(sfe) )
     gh <- spatialize.graph(gh)
 
   # crop edges that are not within bounds
@@ -251,7 +255,8 @@ apply.flow.filters <- function(gh
     activate('edges') %>%
     filter_at( vars(matches('^perc|^tstr'))
                ,any_vars(. >= min.tie.str))
- if(!is.null(tie.str.deciles))
+
+  if(!is.null(tie.str.deciles))
     gh <- gh %>%
     activate('edges') %>%
     filter_at( vars(matches('^perc|^tstr'))
@@ -267,7 +272,7 @@ apply.flow.filters <- function(gh
 #'
 #' From a `sf` object that will center graph, a buffer distance to define area around
 #' center, and a set of trimming parameters, sets up a graph as all nodes surrounding
-#' the area
+#' the area. Built to create a graph within a bounding box.
 #'
 #' @inheritParams sfx2sfg
 #' @inheritParams sfg2gh
@@ -279,14 +284,14 @@ setup.gh.wrapper <- function( sfx
                               ,map.buffer = units::set_units(5, 'miles')
                               ,max.dst = units::set_units(5, 'miles')
                               ,min.flows = 10
-                              ,min.str = NULL
+                              ,min.tie.str = NULL
                               ,directed = F
                               ,tracts.or.groups = c('ct', 'bg')
                               ,year = 2019
                               ,base.dir = Sys.getenv('drop_dir')
                               ,sfg.dir = 'sfg-processed/orig_dest_annual/'
                               ,crs = '+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45'
-) {
+                              ,...) {
 
   ctr <- sfx %>%
     st_transform(crs) %>%
@@ -317,7 +322,7 @@ setup.gh.wrapper <- function( sfx
   gh <- apply.flow.filters(gh
                            ,frame.sf = frame.area
                            ,directed = directed
-                           ,min.str = min.str
+                           ,min.tie.str = min.tie.str
                            ,min.flows = min.flows
                            ,max.dst = max.dst)
 
@@ -438,16 +443,17 @@ is.in.city.center <- function(sfx, cz = NULL, filter2cc = FALSE, ...) {
   # ensure in sf
   sfx <- st_sf(sfx)
 
-  pop.center <-
+  ccenter <-
     divM::largest.plc.in.cz %>%
     filter(cz.id %in% cz) %>%
     st_transform(st_crs(sfx))
 
-  sbgp <- st_intersects(
-    st_point_on_surface(sfx),
-    pop.center)
+  sbgp <-
+    st_intersects(
+      st_point_on_surface(sfx)
+      , ccenter)
 
-  sfx <-  sfx %>%
+  sfx <- sfx %>%
     mutate(in.cc =
              lengths(sbgp) > 0)
 
@@ -462,6 +468,10 @@ is.in.city.center <- function(sfx, cz = NULL, filter2cc = FALSE, ...) {
 
 # convenience fcns -------------------------------------------------------------
 
+#' gh2nodes
+#'
+#' convenience fcn to get nodes as tibble from tidygraph
+#'
 gh2nodes <- function(gh) {
   require(tidygraph)
   gh %>%
@@ -469,6 +479,10 @@ gh2nodes <- function(gh) {
     as_tibble()
 }
 
+#' gh2edges
+#'
+#' convenience fcn to get edges as tibble from tidygraph
+#'
 gh2edges <- function(gh) {
   require(tidygraph)
   gh %>%
@@ -476,6 +490,32 @@ gh2edges <- function(gh) {
     as_tibble()
 }
 
+
+
+# wrapper fcns -----------------------------------------------------------------
+
+Della.wrapper_sf2ergm <- function(sfx ,
+                                  ddir = '/scratch/gpfs/km31/' ,
+                                  ...) {
+  require(tidyverse)
+  require(sf)
+  library(geox)
+
+  # option setting
+  sf_use_s2(T)
+  options(tigris_use_cache = TRUE)
+
+
+}
+
+Della.wrapper_region2ergm <- function( cz = NULL
+                                      ,cbsa = NULL
+                                      ,...) {
+
+
+
+
+}
 
 # resources and refernces -----------------------------------------------------------
 

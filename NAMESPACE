@@ -3,7 +3,6 @@
 export(apply.flow.filters)
 export(build.pairwise.dst.matrix)
 export(flow.map.wrapper)
-export(get.div.layers)
 export(get.flow.weights.within.distance)
 export(is.in.city.center)
 export(region2identifiers)

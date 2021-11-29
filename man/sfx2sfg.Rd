@@ -11,7 +11,8 @@ sfx2sfg(
   trim.loops = T,
   year = 2019,
   base.dir = Sys.getenv("drop_dir"),
-  sfg.dir = "sfg-processed/orig_dest_annual/"
+  sfg.dir = "sfg-processed/orig_dest_annual/",
+  ...
 )
 }
 \arguments{

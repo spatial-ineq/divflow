@@ -71,9 +71,11 @@ sbgs <- bgs %>%
 sbgs %>% mapview()
 
 # just b/c for visuals, remove islands in ad hoc way
-sbgs <- sbgs %>% filter(tractce != '002400')
+sbgs <- sbgs %>% filter(tractce != '002400') %>% st_transform(4326)
 
 bounds <- st_sf(geometry = st_union(sbgs))
+
+bounds <- st_transform(bounds, 4326)
 
 # load safegraph for area ------------------------------------------------------
 
@@ -176,7 +178,7 @@ ggmap(sttm
 
 # to (re)generate nhood divisions ----------------------------------------------
 
-bounds <- st_transform(bounds, 4326)
+
 
 hwys <- geox::get.NHPN(sfx = bounds #%>% st_buffer(1e4)
                  ,dropbox.dir = ddir)
@@ -452,3 +454,85 @@ ergm2 <- ergm(formula = fo.sif
 
 ergm2 %>% summary()
 
+
+# using wrapper fcns to replicate similar --------------------------------------
+devtools::document()
+devtools::load_all()
+
+?setup.gh.wrapper
+bounds <- bounds %>% st_transform(4326)
+bounds %>% plot()
+bxgh <- setup.gh.wrapper(sfx = bounds)
+bxgh
+
+# get background for mapping
+sttm <- visaux::get.stamen.bkg(
+  bounds
+  , zoom = 12
+  ,maptype = 'toner-background'
+)
+
+# lonlat matrix for nodes
+lonlats <- bxgh %>%
+  activate('nodes') %>%
+  as_tibble() %>%
+  st_sf() %>%
+  st_coordinates()
+
+library(ggraph)
+
+
+ggraph::ggraph(bxgh
+                 ,layout = lonlats ) +
+  geom_edge_fan(aes(edge_alpha =
+                      tstr
+                    ,edge_width =
+                      tstr)) #+
+  flow.map.base()
+
+visaux::bbox2ggcrop(sfx = bounds
+                    )
+
+# visaux::ragg.wrapper()
+
+
+lbxgh <- bxgh %>% st_transform(4326)
+
+lonlats <- lbxgh %>%
+  activate('nodes') %>%
+  as_tibble() %>%
+  st_sf() %>%
+  st_coordinates()
+
+library(ggraph)
+
+ggmap(sttm,
+      base_layer =
+        ggraph::ggraph(lbxgh
+                       ,layout = lonlats ) )
+  ggraph::ggraph(lbxgh
+                 ,layout = lonlats ) +
+  geom_edge_fan(aes(edge_alpha =
+                      tstr
+                    ,edge_width =
+                      tstr)
+                ,inherit.aes = F) +
+  flow.map.base()
+
+
+
+# check older saved models -----------------------------------------------------
+
+erdir <- paste0(ddir,'graphs-and-ergms/')
+
+library(tidygraph)
+
+
+smpgl <- erdir %>%
+  list.files(pattern='plc-.*rds'
+             ,full.names = T
+             ,recursive = T) %>%
+  head(1) %>%
+  read_rds()
+
+smpgl

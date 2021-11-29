@@ -22,7 +22,7 @@ with these functions, tstr is tie strength for undirected graph and perc.to.dest
 or perc.from.origin is for directed graph.}
 
 \item{...}{
-  Arguments passed on to \code{\link[=setup.gh.wrapper]{setup.gh.wrapper}}, \code{\link[=get.div.layers]{get.div.layers}}
+  Arguments passed on to \code{\link[=setup.gh.wrapper]{setup.gh.wrapper}}
   \describe{
     \item{\code{directed}}{whether to leave directed or make undirected (which aggregates
 trips to/from the same tracts, rather than duplicating the O-D pair for each
@@ -31,9 +31,9 @@ direction.)}
     \item{\code{sfx}}{an \code{sf} object to crop to and use CRS from. Nodes outside the bbox of
 this area will be trimmed. Defaults to Lambert conformal conic projection if
 left null. (Why do I have all this complexity instead of just using coord_sf
-when mappi ng? Think I need to revise..)}
-    \item{\code{min.str}}{If null, filters to top quartile after other filters applied}
-    \item{\code{bounds.sf}}{sf area that defines bbox to get division layers from.}
+when mappi ng? Think I need to revise.. I think b/c i felt it allowed for more
+controlled trimming but..)}
+    \item{\code{min.tie.str}}{If not null, floor for tie strenght}
   }}
 }
 \description{
@@ -42,5 +42,8 @@ water.
 }
 \details{
 TODO: I think main issue here is that including outside of the bounds can mess up
-what remains in the bounds...
+what remains in the bounds... -> actually I think it's an issue of plot size and
+the scale conversion to pixels.. Lines are thinner than a pixel and become
+invisible depending on plot size. Need to think about how to handle that.
+See: https://www.tidyverse.org/blog/2020/08/taking-control-of-plot-scaling/
 }

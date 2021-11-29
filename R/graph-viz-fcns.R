@@ -18,40 +18,6 @@ flow.map.base <- function() {
 }
 
 
-#' get.div.layers
-#'
-#' Wraps visaux helpers with very specific settings for combining everything.
-#'
-#' @param bounds.sf sf area that defines bbox to get division layers from.
-#' @param ... NHPN directory info passed onto `visaux::get.NHPN`
-#'
-#' @export get.div.layers
-get.div.layers <- function( bounds.sf
-                           , ...) {
-
-  div.lyrs <- visaux::add.map.layers(bounds.sf
-                                     ,add.counties = NULL
-                                     ,add.places = "#583799"
-                                     ,lwd = .5
-                                     ,spatial.trim = st_crop)
-  nhpn <- visaux::get.NHPN(st_transform(bounds.sf# need to let it take ... :,( # also need to make that fcn better so it's not crs dependent
-                                        ,4326)) # ...)
-  hwys <- nhpn %>% filter(signt1 %in% c("I", "U"))
-
-  div.lyrs$ints <-
-    geom_sf(data = filter(hwys,
-                          signt1=="I")
-            , color = "#7d3636", size = .9)
-  div.lyrs$ushwys <-
-    geom_sf(data = filter(hwys,
-                          signt1=="U")
-            , color = "#ed7272", size = .6)
-
-  return(div.lyrs)
-}
-
-
-
 #' flow.map.wrapper
 #'
 #' Big old wrapper function. Includes div layers: Place, US routes, interstates, and
@@ -68,8 +34,6 @@ get.div.layers <- function( bounds.sf
 #'   with these functions, tstr is tie strength for undirected graph and perc.to.dest
 #'   or perc.from.origin is for directed graph.
 #' @inheritDotParams setup.gh.wrapper
-#' @inheritDotParams get.div.layers
-#'
 #'
 #' @export flow.map.wrapper
 flow.map.wrapper <- function(sfx

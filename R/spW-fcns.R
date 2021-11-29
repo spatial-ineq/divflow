@@ -65,7 +65,7 @@ dsts.below.threshold <- function(sfx, i, j.colm = 'nbs') {
 #' by distance if `spatial.weights` is supplied. Does not filter by distace if
 #' it's left as null. Rounds to 4 digits for sparseness.
 #'
-#' @inheritParams get.dist.weighted.composite
+#' @param i geoid with origin and dest in `flow.counts`.
 #' @param flow.type Whether to get weights based on all visitors to i from other
 #'   proximate areas (default); or based on all proximiate areas visited by
 #'   people in area i.

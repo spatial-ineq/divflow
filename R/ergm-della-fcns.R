@@ -16,7 +16,6 @@
 #' Will maybe change so it requires a proximity matrix or list of prx.matrices
 #' at some point..
 #'
-#' @inheritParams Wrapper_prep4ergm
 #'
 Della.wrapper_cz.ergm.variations <- function(
   cz,

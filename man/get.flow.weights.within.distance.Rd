@@ -15,6 +15,8 @@ get.flow.weights.within.distance(
 )
 }
 \arguments{
+\item{i}{geoid with origin and dest in \code{flow.counts}.}
+
 \item{flow.type}{Whether to get weights based on all visitors to i from other
 proximate areas (default); or based on all proximiate areas visited by
 people in area i.}

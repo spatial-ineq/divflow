@@ -4,7 +4,7 @@
 \alias{sfg2gh}
 \title{sfg2gh}
 \usage{
-sfg2gh(sfg, directed = F)
+sfg2gh(sfg, directed = F, ...)
 }
 \arguments{
 \item{sfg}{OD dataframe}

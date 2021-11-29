@@ -9,22 +9,24 @@ setup.gh.wrapper(
   map.buffer = units::set_units(5, "miles"),
   max.dst = units::set_units(5, "miles"),
   min.flows = 10,
-  min.str = NULL,
+  min.tie.str = NULL,
   directed = F,
   tracts.or.groups = c("ct", "bg"),
   year = 2019,
   base.dir = Sys.getenv("drop_dir"),
   sfg.dir = "sfg-processed/orig_dest_annual/",
-  crs = "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"
+  crs = "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45",
+  ...
 )
 }
 \arguments{
 \item{sfx}{an \code{sf} object to crop to and use CRS from. Nodes outside the bbox of
 this area will be trimmed. Defaults to Lambert conformal conic projection if
 left null. (Why do I have all this complexity instead of just using coord_sf
-when mappi ng? Think I need to revise..)}
+when mappi ng? Think I need to revise.. I think b/c i felt it allowed for more
+controlled trimming but..)}
 
-\item{min.str}{If null, filters to top quartile after other filters applied}
+\item{min.tie.str}{If not null, floor for tie strenght}
 
 \item{directed}{whether to leave directed or make undirected (which aggregates
 trips to/from the same tracts, rather than duplicating the O-D pair for each
@@ -35,5 +37,5 @@ direction.)}
 \description{
 From a \code{sf} object that will center graph, a buffer distance to define area around
 center, and a set of trimming parameters, sets up a graph as all nodes surrounding
-the area
+the area. Built to create a graph within a bounding box.
 }
