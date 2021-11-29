@@ -163,7 +163,7 @@ spatialize.graph <- function( gh
 
   cbsf <- eligible.ids %>%
     rename(geoid = name) %>%
-    geox::attach.geos(query_fcn = tigris.call
+    geox::attach.geos(query.fcn = tigris.call
                       ,year = year)
 
   if(!is.null(frame.sf))
@@ -226,6 +226,8 @@ apply.flow.filters <- function(gh
 ) {
 
   require(tidygraph)
+
+  # browser()
 
   sfe <- gh %>% activate('edges') %>% as_tibble()
   if(! 'dst' %in% colnames(sfe))
@@ -375,18 +377,22 @@ get.normalized.undirected.connectedness <- function(x, y,
 #'
 ergm.clean.n.convert <- function(gh, pop.floor = 0) {
 
-  # drop geo; factors -> ints
+  #browser()
+
+  # factors -> ints
   gh <- gh %>%
     activate("nodes") %>%
-    select(-geometry) %>%
+    mutate(across(where(is.factor),
+                  as.integer)) %>%
+    activate("edges") %>%
     mutate(across(where(is.factor),
                   as.integer))
 
   # apply population floor
-  if(is.numeric(population.floor))
+  if(is.numeric(pop.floor))
     gh <- gh %>%
       activate("nodes") %>%
-      filter(pop > population.floor)
+      filter(pop > pop.floor)
 
   # no NAs
   gh <- gh %>%

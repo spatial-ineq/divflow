@@ -1,3 +1,23 @@
+---
+title: "ERGM/maps/spatial interaction function (SIF) update"
+author: "kira"
+output: 
+  html_document:
+     toc: true
+     theme: cerulean
+     highlight: tango
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=9, fig.height=8
+                      #,results="asis"
+                      ,echo = T
+                      ,message = F
+                      ,warning = F
+                      )
+
+
 # ws ---------------------------------------------------------------------------
 
 rm(list = ls())
@@ -11,10 +31,19 @@ options(tigris_use_cache = TRUE)
 
 # dropbox dir or della base dir
 ddir <- Sys.getenv('drop_dir')
-  # '/scratch/gpfs/km31/'
+# '/scratch/gpfs/km31/'
 
 devtools::load_all()
 
+
+```
+
+# ERGMs to predict movement across divisions in space
+
+## load data
+
+
+```{r loaddata}
 
 # sample areas -----------------------------------------------------------------
 
@@ -55,12 +84,10 @@ bgs <- geox::tracts.from.sf(x = st_bbox(smplc)
 bgs[3] %>% plot()
 
 # remove water areas (per census naming conventions)
-mapview(bgs, zcol = 'awater')
-sbgs['awater'] %>% plot()
+
 sbgs <- bgs %>% filter(substr(tractce,1,2) != '99')
 
-
-# subset to polygon, not bboxx
+# subset to polygon, from bboxx
 sbgs <- xwalks::get.spatial.overlap(sbgs, smplc
                                     ,'geoid', 'placefp')
 
@@ -68,7 +95,7 @@ sbgs <- xwalks::get.spatial.overlap(sbgs, smplc
 sbgs <- bgs %>%
   filter(geoid %in% sbgs$geoid)
 
-sbgs %>% mapview()
+sbgs['awater'] %>% plot()
 
 # just b/c for visuals, remove islands in ad hoc way
 sbgs <- sbgs %>% filter(tractce != '002400')
@@ -77,9 +104,7 @@ bounds <- st_sf(geometry = st_union(sbgs))
 
 # load safegraph for area ------------------------------------------------------
 
-devtools::load_all()
-
-# flexible function
+# function loads all CZs intersecting with area
 sfg <- sfx2sfg(bounds
                ,min.flows = 10
                ,tracts.or.groups = 'bg'
@@ -89,7 +114,7 @@ sfg <- sfx2sfg(bounds
 #trim to just place
 sfgt <- sfg %>%
   filter(across(c(origin, dest)
-                      , ~.x %in% sbgs$geoid))
+                , ~.x %in% sbgs$geoid))
 
 # turn to (undirected) graph
 ugh <- sfg2gh(sfgt, directed = F)
@@ -104,6 +129,15 @@ ghsf <- spatialize.graph(ugh,
 # transform
 ghsf <- st_transform(ghsf, 4326)
 
+```
+
+## Look at graph
+
+Summarise edges (trips and tie strength); visualize
+
+
+```{r checkgh}
+
 ghsf
 sbgs
 
@@ -117,25 +151,19 @@ tibble(edges)[Hmisc::Cs(n, tstr, dst)] %>% map(summary)
 
 tibble(edges)[Hmisc::Cs(n, tstr, dst)] %>% map( ~quantile(.x, seq(0,1,.1)))
 
-
 # trim by flow str -------------------------------------------------------------
-
-devtools::load_all()
 
 bounds
 sbgs
+
 # skipped; sample area seems small enough
 trimmed.ghsf <- apply.flow.filters(ghsf
                                    ,frame.sf = NULL
                                    ,directed = F
                                    ,min.tie.str = NULL
-                                   ,tie.str.deciles = 4 # filter out bottom x deciles
+                                   ,tie.str.deciles = 5 # filter out bottom x deciles
                                    ,min.flows = 10
                                    ,max.dst = units::set_units(20, 'miles'))
-
-trimmed.ghsf
-ghsf
-
 
 # map graph ------------------------------------------------------------
 
@@ -146,7 +174,7 @@ sttm <- visaux::get.stamen.bkg(
   sbgs
   , zoom = 12
   ,maptype = 'toner-background'
-  )
+)
 
 # lonlat matrix for notes
 lonlats <- ghsf %>%
@@ -161,109 +189,112 @@ ggmap(sttm
       , base_layer =
         ggraph(trimmed.ghsf # ghsf #
                , layout = lonlats )
-        ) +
+) +
   geom_edge_density(fill = '#00D0D0') +
   geom_edge_fan( aes( edge_alpha = tstr
-                    ,edge_width = tstr)
+                      ,edge_width = tstr)
                  ,color = '#008080'
-                ) +
+  ) +
   flow.map.base() +
   visaux::bbox2ggcrop(bounds)
 
+```
+
+## Generate divisions
+
+Can use pre-loaded divisions. I kind of like just using the function to re-generate because it makes the process more self-contained and easier to adjust.
+
+I allocate neighborhoods (defined as block groups) to sides-of-divisons based on interstates and all urban arterials for this example.
+
+```{r gendiv}
 
 # merge in n'hood level ERGM controls -------------------------------
 
+# (re)generate nhood divisions ----------------------------------------------
 
-# to (re)generate nhood divisions ----------------------------------------------
+#' i was previously working with NHPN data (national highway planning network)
+#' but it was often frustratingly messy. Switching to spatial census data, which is
+#' much better, but more complex
 
-bounds <- st_transform(bounds, 4326)
 
-hwys <- geox::get.NHPN(sfx = bounds #%>% st_buffer(1e4)
-                 ,dropbox.dir = ddir)
-fwhys <- divM::Fix.all.hwys(hwys
-                            ,threshold = 500
-                            ,return.gap.map = T)
+#' Census codes for road features are referenced here:
+#'
+#' https://www2.census.gov/geo/pdfs/reference/mtfccs2019.pdf
+#' (See MTFCCS: S1100, S1200, S1400)
+
+sbgs
+rds <- tigris::roads(state = unique(sbgs$statefp)
+                     ,county = unique(sbgs$countyfp)) %>%
+  rename_with(tolower)
+
+rds <- rds %>% st_transform(4326)
+rds <- st_crop(rds, smplc)
+
+# just interstates
+interstates <- rds %>% 
+  filter(rttyp %in% 'I')
+
+# all primary & secondary roads (limited-access and arterials) and hwy ramps
+arterials <- rds %>%
+  filter(mtfcc %in%
+           Hmisc::Cs(S1100, S1200, S1630))
+
+# call divM function
+bounds$placefp <- smplc$placefp
 
 xnbd <- divM::gen.cross.tract.dividedness(
-  smplc
-  ,hwys
+  bounds
+  ,interstates
   ,nbd.query.fcn = tigris::block_groups
   ,region.id.colm = 'placefp'
   ,fill.nhpn.gaps = F # this can help in some cases and not others... nhpn data is not perfect
   ,erase.water = F
   ,year = 2019
-)
+) %>%
+  select(geoid, int.poly = poly.id)
 
 
-xnbd <- xnbd %>%
-  select(geoid, hwy.poly = poly.id)
-
-# merge in w/ nodes
-ghsf <- ghsf %>%
-  activate('nodes') %>%
-  left_join(xnbd
-            , by = c('name' = 'geoid'))
-
-# vis
-ghsf %>%
-  activate('nodes') %>%
-  as_tibble() %>% st_sf() %>% mapview(zcol = 'hwy.poly') +
-  mapview(hwys)
-
-
-
-# alternate with urban arterials/ census road data --------------------------------
-
-#' ( this would mimic Grannis 2005 definition, using census roads and filtering by
-#' CFCC (census feature classification codes)). The census codes changed since his
-#' paper and new ones referenced here:
-#'
-#' https://www2.census.gov/geo/pdfs/reference/mtfccs2019.pdf
-#' (See MTFCCS: S1100, S1200, S1400)
-
-
-sbgs
-rds <- tigris::roads(state = unique(sbgs$statefp)
-              ,county = unique(sbgs$countyfp)) %>%
-  rename_with(tolower)
-
-# filter to primary & secondary roads (limited-access and arterials) and hwy ramps
-arterials <- rds %>%
-  filter(mtfcc %in%
-           Hmisc::Cs(S1100, S1200, S1630)) %>%
-  st_transform(4326)
-
-arterials <- st_crop(arterials, smplc)
-
-xnbd2 <- divM::gen.cross.tract.dividedness(
-  smplc
+xnbd.a <- divM::gen.cross.tract.dividedness(
+  bounds
   ,arterials
   ,nbd.query.fcn = tigris::block_groups
   ,region.id.colm = 'placefp'
   ,fill.nhpn.gaps = F # this can help in some cases and not others... nhpn data is not perfect
   ,erase.water = F
   ,year = 2019
-)
-
-
-xnbd2 <- xnbd2 %>%
+) %>%
   select(geoid, arterial.poly = poly.id)
 
 # merge in w/ nodes
-ghsf <- ghsf %>%
+ghsf <-
+  ghsf %>%
   activate('nodes') %>%
-  left_join(xnbd2
+  left_join(xnbd
+            , by = c('name' = 'geoid')) %>% 
+    left_join(xnbd.a
             , by = c('name' = 'geoid'))
+
 
 # vis
 ghsf %>%
   activate('nodes') %>%
+  as_tibble() %>% st_sf() %>% mapview(zcol = 'int.poly') +
+  mapview(interstates) +
+  mapview(bounds)
+
+ghsf %>%
+  activate('nodes') %>%
   as_tibble() %>% st_sf() %>% mapview(zcol = 'arterial.poly') +
-  mapview(arterials)
+  mapview(arterials) +
+  mapview(bounds)
 
-# can use this data to treat roads in more differentiated way too!! And census data
-# is better than NHPN, if functions accommodate the complexity well enough.
+```
 
+## Add other characteristics
+
+Keep simple for this example
+
+```{r demos}
 
 # get other tract-level characteristics ----------------------------------------
 
@@ -292,10 +323,16 @@ dghsf <- ghsf %>%
            n * (.N()$n.hsp[from] + .N()$n.hsp[to]) / 2
          ,flow.n.wh =
            n * (.N()$n.wh[from] + .N()$n.wh[to]) / 2
-         )
+  )
 # .....
 
+```
 
+## Run an ERGM
+
+```{r ergms}
+
+set.seed(1234)
 
 # final setup for ergm ---------------------------------------------------------
 
@@ -334,31 +371,28 @@ library(latentnet)
 eugh
 fo.base <- formula(
   eugh ~ edges +
-    nodematch("arterial.poly", diff = FALSE) +
+    nodematch("int.poly", diff = FALSE) +
     #nodematch("hwy.poly", diff = FALSE) +
     absdiff("perc.wh", pow=1)
-  )
+)
 ugh
 
 # ergms take while to run. A good time to use Della
 ergm1 <- ergm(formula = fo.base
-     ,"n"
-     ,reference = ~Poisson)
+              ,"n"
+              ,reference = ~Poisson)
 
 ergm1 %>% summary()
 
+```
 
-# save ws ----------------------------------------------------------------------
+## Incorporating Distance and Spatial Interaction Function
 
-save.dir <- 'R/ERGM versions/'
-save.dir %>% list.files()
-
-#save.image(paste0(save.dir, 'sample ergm ws.rdata'))
-
+```{r sif}
 
 # generate spatial interaction fcn ---------------------------------------------
 
-# may little SIF tutorial:
+# my little SIF tutorial:
 # https://rpubs.com/kmc39/sif
 
 sfn <- ghsf %>%
@@ -377,14 +411,12 @@ dst.mat %>% head() # values are kilometers
 
 # binned relative frequencies (# of ties over distance, relative to crosswise
 # distance distribution)
-devtools::load_all()
-
 dst.freq <-
   relative.tie_dst.frequency(
-      sfn, sfe
+    sfn, sfe
     , dst.mat = dst.mat
     , n.bins = 60
-    )
+  )
 
 dst.freq
 
@@ -411,9 +443,9 @@ param.fitting <-
 # predicted tie probabilities, based on SIF
 dst.freq$flow.hat <-
   power.law(dst.freq$dst.lvl,
-                    param.fitting$par[1],
-                    param.fitting$par[2],
-                    param.fitting$par[3]
+            param.fitting$par[1],
+            param.fitting$par[2],
+            param.fitting$par[3]
   )
 
 dst.freq %>%
@@ -431,17 +463,21 @@ decay.mat <- dst.mat %>%
   power.law(param.fitting$par[1],
             param.fitting$par[2],
             param.fitting$par[3])
+```
 
+## ERGMS with SIF
 
-# ERGM with sif ----------------------------------------------------------------
+```{r ergmsif}
+
+# ERGM with sif, only interstates ----------------------------------------------------------------
 
 fo.sif <-
   formula(
-  eugh ~ edges +
-    nodematch("arterial.poly", diff = FALSE) +
-    #nodematch("hwy.poly", diff = FALSE) +
-    absdiff("perc.wh", pow=1) +
-    edgecov(decay.mat, "dst")
+    eugh ~ edges +
+      nodematch("int.poly", diff = FALSE) +
+      #nodematch("hwy.poly", diff = FALSE) +
+      absdiff("perc.wh", pow=1) +
+      edgecov(decay.mat, "dst")
   )
 eugh
 
@@ -452,3 +488,24 @@ ergm2 <- ergm(formula = fo.sif
 
 ergm2 %>% summary()
 
+
+# ERGM with sif with arterials ----------------------------------------------------------------
+
+fo.sif <-
+  formula(
+    eugh ~ edges +
+      nodematch("arterial.poly", diff = FALSE) +
+      #nodematch("hwy.poly", diff = FALSE) +
+      absdiff("perc.wh", pow=1) +
+      edgecov(decay.mat, "dst")
+  )
+eugh
+
+# ergms take while to run. A good time to use Della
+ergm2 <- ergm(formula = fo.sif
+              ,"tstr"
+              ,reference = ~Poisson)
+
+ergm2 %>% summary()
+
+```

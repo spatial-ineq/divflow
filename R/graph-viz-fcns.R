@@ -130,12 +130,8 @@ flow.map.wrapper <- function(sfx
 
 #' sfx2coord_sf
 #'
-#' ggplot2::coord_sf limits the bounds of a map made with ggplot. This function uses
-#' an `sf` object, and uses that to set the bounds of a ggplot, cropping other layers
-#' on the plot to the bounding box.
 #'
-#' @param sfx `sf` object to get bbox from
-#' @param expand passed onto `coord_sf`; whether to do a small buffer outside of box
+#' moved to visaux::bbox2ggcrop
 #'
 sfx2coord_sf <- function(sfx, expand = F) {
 

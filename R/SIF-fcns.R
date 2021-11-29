@@ -62,7 +62,8 @@ relative.tie_dst.frequency <- function(sfn = NULL, sfe = NULL,
 
   if(is.null(sfn) | is.null(sfe)) {
     # spatial nodes
-    sfn <- gh %>% get_nodes() %>% st_sf()
+    sfn <- gh %>% activate('nodes') %>%
+      as_tibble() %>% st_sf()
 
     # spatial edges
     sfe <-  gh %>%
@@ -76,6 +77,8 @@ relative.tie_dst.frequency <- function(sfn = NULL, sfe = NULL,
     sfe$dst <- st_length(sfe$geometry)
     sfe$dst <- as.numeric(sfe$dst) / 1000 # to km
   }
+
+  # browser()
 
   # build raw distance matrix
   if(is.null(dst.mat))
