@@ -8,7 +8,7 @@
 #' build.pairwise.dst.matrix
 #'
 #' Builds a pairwise distance matrix from an sf object. Option to get bisq distance
-#' wights. Mostly just wraps `sf::st_distance`. See
+#' weights. Mostly just wraps `sf::st_distance`. See
 #' http://mjh4.blogspot.com/2012/09/ergm-edgecov-and-dyadcov-specifications.html or
 #' https://cran.r-project.org/web/packages/ergm/vignettes/ergm-term-crossRef.html for
 #' `edgecov`/`dyadcov` documentation.
@@ -123,11 +123,11 @@ relative.tie_dst.frequency <- function(sfn = NULL, sfe = NULL,
 
   # average flows for each distance bin
   dst.freq$avg.flow <-
-    with(dst.freq, flow.count/xwise.count)
+    with(dst.freq, flow.count / xwise.count)
 
   # add dst midpoints (can be nicer for plotting etc.)
   dst.freq$dst.lvl <-
-    appHelpers::get_mean_from_interval(dst.freq$dst.bin)
+    visaux::get_mean_from_interval(dst.freq$dst.bin)
 
   # rearrange cols
   dst.freq <- dst.freq %>%
@@ -149,8 +149,10 @@ relative.tie_dst.frequency <- function(sfn = NULL, sfe = NULL,
 #' from https://rpubs.com/YaRrr/MLTutorial
 #'
 #' @param par vector of parameters passed onto `power.law`
+#' @param dst.freq relative distance frequency table, as created from above
+#'   `relative.tie_dst.frequency`
 #'
-power.law.loss.fcn <- function(par) {
+power.law.loss.fcn <- function(par, dst.freq) {
 
   pb <- par[1]
   gamma <- par[2]

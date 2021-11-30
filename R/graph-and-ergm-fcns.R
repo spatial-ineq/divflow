@@ -257,12 +257,12 @@ spatialize.graph <- function(gh
 #' @inheritParams sfg2gh
 #' @param min.tie.str If not null, floor for tie strength
 #' @param min.flows minimum flows
-#' @param tie.str.deciles If not null, number of deciles of tie str to keep after all
+#' @param tie.str.drop.deciles If not null, number of deciles of tie str to keep after all
 #'   other trims
 #'
 #' @export apply.flow.filters
 apply.flow.filters <- function(gh
-                               ,tie.str.deciles = 5
+                               ,tie.str.drop.deciles = 5
                                ,directed = F
                                ,frame.sf = NULL
                                ,min.tie.str = NULL
@@ -286,10 +286,15 @@ apply.flow.filters <- function(gh
     st_crop(frame.sf)
 
   # filter by flows & distance
+  if(!is.null(max.dst))
   gh <- gh %>%
     activate('edges') %>%
-    filter(dst <= max.dst,
-           n >= min.flows)
+    filter(dst <= max.dst)
+
+  if(!is.null(min.flows))
+    gh <- gh %>%
+    activate('edges') %>%
+    filter(n >= min.flows)
 
   # filter by tie strength
   if(!is.null(min.tie.str))
@@ -298,13 +303,13 @@ apply.flow.filters <- function(gh
     filter_at( vars(matches('^perc|^tstr'))
                ,any_vars(. >= min.tie.str))
 
-  if(!is.null(tie.str.deciles))
+  if(!is.null(tie.str.drop.deciles))
     gh <- gh %>%
     activate('edges') %>%
     filter_at( vars(matches('^perc|^tstr'))
                ,any_vars(. >= # drop n quartiles
                            quantile(.,
-                                    seq(0,1,.1))[tie.str.deciles + 1])
+                                    seq(0,1,.1))[tie.str.drop.deciles + 1])
                )
   return(gh)
 }
@@ -522,31 +527,6 @@ gh2coords <- function(gh) {
 
 }
 
-
-# wrapper fcns -----------------------------------------------------------------
-
-Della.wrapper_sf2ergm <- function(sfx ,
-                                  ddir = '/scratch/gpfs/km31/' ,
-                                  ...) {
-  require(tidyverse)
-  require(sf)
-  library(geox)
-
-  # option setting
-  sf_use_s2(T)
-  options(tigris_use_cache = TRUE)
-
-
-}
-
-Della.wrapper_region2ergm <- function( cz = NULL
-                                      ,cbsa = NULL
-                                      ,...) {
-
-
-
-
-}
 
 # resources and refernces -----------------------------------------------------------
 

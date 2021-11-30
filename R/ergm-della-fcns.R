@@ -1,6 +1,7 @@
-#' Wrapper fcns to send to della w/ rslurm
+# Wrapper fcns to send to della w/ rslurm
 
-
+# NOTE these are all outdated. New ones are just in della generation scripts..
+#
 
 # by cz -------------------------------------------------------------------
 
