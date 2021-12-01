@@ -19,7 +19,7 @@ representing KMs
 }
 \description{
 Builds a pairwise distance matrix from an sf object. Option to get bisq distance
-wights. Mostly just wraps \code{sf::st_distance}. See
+weights. Mostly just wraps \code{sf::st_distance}. See
 http://mjh4.blogspot.com/2012/09/ergm-edgecov-and-dyadcov-specifications.html or
 https://cran.r-project.org/web/packages/ergm/vignettes/ergm-term-crossRef.html for
 \code{edgecov}/\code{dyadcov} documentation.

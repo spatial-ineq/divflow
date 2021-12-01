@@ -2,8 +2,7 @@
 % Please edit documentation in R/ergm-della-fcns.R
 \name{Della.wrapper_cz.ergm.variations}
 \alias{Della.wrapper_cz.ergm.variations}
-\title{Wrapper fcns to send to della w/ rslurm
-Della.wrapper_cz.ergm.variations}
+\title{Della.wrapper_cz.ergm.variations}
 \usage{
 Della.wrapper_cz.ergm.variations(
   cz,

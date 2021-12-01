@@ -6,7 +6,7 @@
 \usage{
 apply.flow.filters(
   gh,
-  tie.str.deciles = 5,
+  tie.str.drop.deciles = 5,
   directed = F,
   frame.sf = NULL,
   min.tie.str = NULL,
@@ -18,7 +18,7 @@ apply.flow.filters(
 \arguments{
 \item{gh}{a graph, as setup by \code{sfg2gh}}
 
-\item{tie.str.deciles}{If not null, number of deciles of tie str to keep after all
+\item{tie.str.drop.deciles}{If not null, number of deciles of tie str to keep after all
 other trims}
 
 \item{directed}{whether to leave directed or make undirected (which aggregates

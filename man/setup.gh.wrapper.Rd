@@ -24,7 +24,7 @@ controlled trimming but..)}
     \item{\code{tracts.or.groups}}{Aggregate to census tract (ct) or leave at block group (bg)}
     \item{\code{min.tie.str}}{If not null, floor for tie strength}
     \item{\code{min.flows}}{minimum flows}
-    \item{\code{tie.str.deciles}}{If not null, number of deciles of tie str to keep after all
+    \item{\code{tie.str.drop.deciles}}{If not null, number of deciles of tie str to keep after all
 other trims}
   }}
 }

@@ -5,10 +5,13 @@
 \title{for the parameters for the spatial interaction fucntion
 power.law.loss.fcn}
 \usage{
-power.law.loss.fcn(par)
+power.law.loss.fcn(par, dst.freq)
 }
 \arguments{
 \item{par}{vector of parameters passed onto \code{power.law}}
+
+\item{dst.freq}{relative distance frequency table, as created from above
+\code{relative.tie_dst.frequency}}
 }
 \description{
 Loss function that wraps the \code{power.law} fcn. Uses the \code{dst.freq} object, as

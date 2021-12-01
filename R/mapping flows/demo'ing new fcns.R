@@ -34,12 +34,12 @@ eligible.area <- ctr %>%
 frame.area <- ctr %>%
   st_buffer(map.range)
 
-# div layers
-divlyrs <- get.div.layers(bounds.sf = frame.area)
-ggplot() + divlyrs # magic!
+sttm <- visaux::get.stamen.bkg(
+  frame.area,
+  zoom = 11
+)
 
-
-# tracts -----------------------------------------------------------------------
+ggmap(sttm)
 
 
 # step by step gh setup --------------------------------------------------------
@@ -47,23 +47,23 @@ ggplot() + divlyrs # magic!
 devtools::load_all()
 od <-
   sfx2sfg(
-    eligible.sf = eligible.area
+    sfx = eligible.area
     ,min.flows = 5
-    ,tracts.or.groups = 'ct'
+    ,tracts.or.groups = 'bg' # ct
     ,base.dir = Sys.getenv('drop_dir')
     ,sfg.dir = 'sfg-processed/orig_dest_annual/'
     ,year= 2019
     ,trim.loops = T)
 
 
-full.gh <- sfg2gh(
+gh <- sfg2gh(
   od
   ,directed = F
   )
 
-devtools::load_all()
+
 ghsf <- spatialize.graph(
-  full.gh
+  gh
   ,frame.sf = frame.area
   ,tracts.or.groups = 'ct'
   ,directed = F

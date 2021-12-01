@@ -35,6 +35,7 @@ rid2sfg <- function(cz = NULL, cbsa = NULL
 #'
 #' @export sfx2sfg
 sfx2sfg <- function( sfx
+                     , year = 2019
                      , ...) {
 
   require(tidyverse)
@@ -44,17 +45,19 @@ sfx2sfg <- function( sfx
 
   # get county overlap with bounding area, and use that to load sfg data
   cos <- tigris::counties(year = year)
-  cos <- cos %>% st_transform(st_crs(eligible.sf))
+  cos <- cos %>% st_transform(st_crs(sfx))
 
   ovcos <- st_crop(cos
-                   ,eligible.sf)
+                   ,sfx)
 
   .czs <-
     geox::rx %>%
     filter(countyfp %in% ovcos$GEOID) %>%
     pull(cz) %>% unique()
 
-  sfg <- load.sfg(.czs, ...)
+  sfg <- load.sfg(.czs
+                  ,year = year
+                  ,...)
 
   return(sfg)
 }
@@ -216,6 +219,7 @@ spatialize.graph <- function(gh
     st_crop(frame.sf)
   else
     cbsf <- cbsf %>%
+    #st_transform(4326)
     st_transform(crs = '+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45')
 
   # get centroids
@@ -332,6 +336,7 @@ setup.gh.wrapper <- function( sfx = NULL
 
   if(!is.null(sfx)){
     sfg <- sfx2sfg(sfx = sfx
+                   ,year = 2019
                    , ...)
 
     frame.sf <- st_bbox(sfx)
