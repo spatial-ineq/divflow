@@ -55,27 +55,29 @@ od <-
     ,year= 2019
     ,trim.loops = T)
 
+od <- od %>% filter(n >= 10)
 
 gh <- sfg2gh(
   od
   ,directed = F
   )
 
-
-ghsf <- spatialize.graph(
+ghsf <-
+  spatialize.graph(
   gh
   ,frame.sf = frame.area
-  ,tracts.or.groups = 'ct'
+  ,tracts.or.groups = 'bg' #'ct'
   ,directed = F
 )
 
 fgh <- apply.flow.filters(
   ghsf
-  ,min.flows = 5
-  , tie.str.deciles = 7
+  ,min.flows = 10
+  , tie.str.deciles = 5
   ,frame.sf = frame.area
   ,max.dst = max.distance
 )
+
 fgh
 
 # consider alternate flow trims ------------------------------------------------
@@ -89,15 +91,13 @@ ghsf %>% filter(tstr > .001)
 fgh %>% filter(tstr > .01)
 
 # map stl --------------------------------------------------------------------------
-to.map <- fgh
+to.map <- fgh %>% st_transform(4326)
+
 #to.map <- fgh %>% activate('nodes') %>% st_crop(frame.area)
 
 fgh
 lonlats <- to.map %>%
-  activate('nodes') %>%
-  as_tibble() %>%
-  st_sf() %>%
-  st_coordinates()
+  gh2coords()
 
 ggflbase <- flow.map.base()
 
@@ -116,11 +116,32 @@ stl.flow.map <- to.map %>%
                               ,range = c(.1,1)) +
   scale_edge_width_continuous(guide = 'none'
                              ,range = c(.1, 1.5)) +
-  scale_color_discrete(guide = 'none')
+  scale_color_discrete(guide = 'none') +
+  ggtitle('stl flow map')
 
-stl.flow.map + ggtitle('stl flow map')
+stl.flow.map +
+  sfx2coord_sf(frame.area)
 
-stl.flow.map + sfx2coord_sf(frame.area)
+# with stamen background
+sttm <- visaux::get.stamen.bkg(sfx = frame.area
+                               ,zoom= 12)
+
+ggmap(sttm
+      ,base_layer =
+         ggraph(to.map
+                ,layout = lonlats)) +
+  geom_edge_link(aes(edge_alpha =
+                      tstr
+                    ,edge_width =
+                      tstr)
+                 ,color = '#008080') +
+  flow.map.base() +
+  visaux::bbox2ggcrop(frame.area) +
+  ggtitle('stl flow map')
+
+visaux::ragg.wrapper(fn = 'stl-flow-map')
+
+# after this point, it's mostly scratch ----------------------------------------
 
 
 

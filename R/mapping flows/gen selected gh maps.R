@@ -14,7 +14,7 @@ rm(list=ls())
 
 
 
-# workflow ---------------------------------------------------------------------------
+# workflow --------------------------------------------------------------------------
 
 # use trueIsolation pkg, which exports zoom boxes, to create graph maps that focus on
 # particular areas of interest
@@ -22,7 +22,7 @@ rm(list=ls())
 trueIsolation::zoom.boxes
 
 
-# ------------------------------------------------------------------------------
+# sample map of small area / establish workflow -------------------------------------
 
 smpl <- trueIsolation::zoom.boxes[7,]
 
@@ -172,7 +172,7 @@ map(1:nrow(trueIsolation::zoom.boxes)
 
 # variations -------------------------------------------------------------------
 
-# brooklyn had too many flows
+# brooklyn had too many flows, so re-do with different parameters
 bk <- trueIsolation::zoom.boxes %>%
   filter(an == 'brooklyn')
 
