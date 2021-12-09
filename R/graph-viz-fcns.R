@@ -39,12 +39,15 @@ flow.map.base <- function() {
 flow.map.wrapper <- function(sfx
                              ,gh = NULL
                              ,edge.attr = 'n'
-                             ,log.transform = T
+                             ,log.transform = F
                              ,map.buffer = units::set_units(5, 'miles')
                              ,max.dst = units::set_units(5, 'miles')
                              ,...) {
 
+  browser()
+
   ctr <- sfx %>%
+    divM::conic.transform() %>%
     st_centroid()
 
   eligible.area <- ctr %>%
@@ -60,18 +63,15 @@ flow.map.wrapper <- function(sfx
                            , ...)
 
   lonlats <- gh %>%
-    activate('nodes') %>%
-    as_tibble() %>%
-    st_sf() %>%
-    st_coordinates()
+    gh2coords()
 
   ggbase <- flow.map.base()
 
   # transform if necessary
-  gh <-  gh %>%
+  gh <- gh %>%
     mutate(ex = get(edge.attr))
   if(log.transform)
-    gh$ex <- log(gh$ex)
+    gh$ex <- gh %>% gh2edges() %>% pull(ex) %>% log()
 
   require(ggraph)
 

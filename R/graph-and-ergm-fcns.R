@@ -199,6 +199,9 @@ spatialize.graph <- function(gh
 
   requireNamespace('sfnetworks')
 
+  # browser()
+  if('sfnetwork' %in% class(gh)) warning('gh is already sfnetworks class')
+
   # get geometries based on type
   if(tracts.or.groups[1] == 'ct')
     tigris.call <- tigris::tracts
@@ -208,22 +211,22 @@ spatialize.graph <- function(gh
   eligible.ids <-
     gh %>% activate('nodes') %>% as_tibble()
 
-  cbsf <- eligible.ids %>%
+  nbsf <- eligible.ids %>%
     rename(geoid = name) %>%
     geox::attach.geos(query.fcn = tigris.call
                       ,year = year)
 
   if(!is.null(frame.sf))
-    cbsf <- cbsf %>%
+    nbsf <- nbsf %>%
     st_transform(st_crs(frame.sf)) %>%
     st_crop(frame.sf)
   else
-    cbsf <- cbsf %>%
+    nbsf <- nbsf %>%
     #st_transform(4326)
     st_transform(crs = '+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45')
 
   # get centroids
-  ctrs <- st_centroid(cbsf)
+  ctrs <- st_centroid(nbsf) %>% select(geoid, geometry)
 
   # inner join to filter nodes out of crop distance
   gh <- gh %>%

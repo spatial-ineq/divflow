@@ -6,25 +6,24 @@
 
 # setup ws ----------------------------------------------------------------
 
+rm(list=ls())
 library(tidyverse)
 library(sf)
 library(statnet)
 library(igraph)
 library(tidygraph)
-ergm.dir <- "/scratch/gpfs/km31/ergms/"
-cur.dir <- "R/SIF & mapping - mkdown & analysis dev"
+
+#ddir <- 'scratch/gpfs/km31'
+ddir <- Sys.getenv('drop_dir')
+ergm.dir <- paste0(ddir, 'graphs-and-ergms/')
+cur.dir <- "R/SIF & mapping - mkdown & analysis dev/"
 
 devtools::load_all()
 
 # get hwy data for visuals & transform to node crs
-hwy.dir <-
-  "/scratch/gpfs/km31/other-local-data/National_Highway_Planning_Network-shp/"
-nhpn <-
-  st_read(paste0(hwy.dir,
-                 "National_Highway_Planning_Network.shp"
-  ))
+nhpn <- geox::get.NHPN()
 
-nhpn <- nhpn %>% divM::conic.transform()
+# nhpn <- nhpn %>% divM::conic.transform()
 
 
 # select city -------------------------------------------------------------
@@ -32,8 +31,11 @@ nhpn <- nhpn %>% divM::conic.transform()
 city.str <-
   "19700" #philly
   #"24701" # st louis
-(tmpr <- divM::get.region.identifiers(cz = city.str))
 
+rids <- geox::get.region.identifiers(cz = city.str)
+
+# bounds
+bounds <- geox::build.CZs(rids$rid) #%>% st_transform(4326)
 
 # load prepped graphs -----------------------------------------------------
 
@@ -41,10 +43,10 @@ city.str <-
 czdir <- paste0(ergm.dir, "cz-graphs/")
 plcdir <- paste0(ergm.dir, "plc-graphs/")
 
-czgh <- list.files(czdir, pattern = city.str, full.names = T) %>% readRDS()
-plcgh <- list.files(plcdir, pattern = city.str, full.names = T) %>% readRDS()
-
-
+czgh <- list.files(czdir
+                   , pattern = city.str, full.names = T) %>% readRDS()
+plcgh <- list.files(plcdir
+                    , pattern = city.str, full.names = T) %>% readRDS()
 
 # little additions --------------------------------------------------------
 
@@ -54,27 +56,37 @@ trim.pop <- function(gh, pop.floor = 500){
   gh %>%
     activate("nodes") %>%
     filter(pop > pop.floor)}
-czgh <- czgh %>%  trim.pop
-plcgh <- plcgh %>% trim.pop
 
+# czgh <- czgh %>%  trim.pop
+# plcgh <- plcgh %>% trim.pop
+
+czgh <-
+  czgh %>% spatialize.graph(bounds)
+
+plcgh <-
+  plcgh %>% spatialize.graph(bounds)
 
 # get visuals -------------------------------------------------------------
-
+make.graph.map
 czplot <-
-  Wrapper_make.graph.map(czgh,
-                          tie.str.floor = 5e-3,
-                          flow.colm = "binned.tie.strength"
-                          ,trim2plc = F
-                          ,n_breaks = 3
-                          ,digits = 5)
+  flow.map.wrapper(bounds
+                   ,czgh
+                   ,tie.str.floor = 5e-3
+                   ,flow.colm = "binned.tie.strength"
+                   ,trim2plc = F
+                   ,n_breaks = 3
+                   ,digits = 5)
+
+devtools::load_all()
 
 plcplot <-
-  Wrapper_make.graph.map(plcgh,
-                         tie.str.floor = 5e-3,
-                         flow.colm = "binned.tie.strength"
-                         ,trim2plc = T
-                         ,n_breaks = 3
-                         ,digits = 5)
+  flow.map.wrapper(bounds
+                   ,plcgh
+                   ,tie.str.floor = 5e-3
+                   ,edge.attr = "tie.strength"
+                   ,trim2plc = T
+                   ,n_breaks = 3
+                   ,digits = 5)
 
 czplot
 plcplot
