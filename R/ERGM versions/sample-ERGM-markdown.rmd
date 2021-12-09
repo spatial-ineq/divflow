@@ -437,8 +437,10 @@ dst.freq %>%
 # use flow bins to parameterize a power law SIF
 # below relies on the `dst.freq` in the general environment
 param.fitting <-
-  stats::optim(par= c(1,1.7,1, 10),
-               fn = power.law.loss.fcn, hessian = T)
+param.fitting <-
+  stats::optim(par= c(1,1.7,1, 10)
+               ,fn = function(x) power.law.loss.fcn(x, dst.freq)
+               , hessian = T)
 
 # predicted tie probabilities, based on SIF
 dst.freq$flow.hat <-
