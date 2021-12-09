@@ -1,7 +1,11 @@
 # Wrapper fcns to send to della w/ rslurm
 
-# NOTE these are all outdated. New ones are just in della generation scripts..
-#
+
+# notes ------------------------------------------------------------------------
+
+# These are mostly outdated, but they generated the first set of ERGM models, so I'm
+# leaving un-deleted still for now. More recent workflow is in the della script
+# itself.
 
 # by cz -------------------------------------------------------------------
 

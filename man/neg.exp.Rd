@@ -10,7 +10,16 @@ neg.exp(d, ...)
 \item{d}{distance}
 }
 \description{
-e^-distance. Used by Massey and Denton for the Clustering dimension of
-segregation. Notably they include tract where i==j and use an estimated
-self-distance
+e^-distance.
+}
+\details{
+Used by Massey and Denton to define a distance decay function used for various of
+their possible indices for Clustering dimension of segregation. Notably they
+include tract where i==j and use an non-zero within-tract distance in this case.
+They estimate d_ii (average within tract distance for tract i) to be (.6a_i)^.5
+"following White 1983." In contrast, this function here assumes no loops (i!=j),
+and does not apply a within-tract weight.
+
+I think this is a good, straightforward way to include decayed distance without
+worrying about parameterizing.
 }

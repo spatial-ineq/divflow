@@ -10,5 +10,9 @@ exponential.decay(d, pb = 1, alpha = 0.5, ...)
 \item{d}{distance}
 }
 \description{
+One of the functional forms posited for the SIF in Daraganova 2012 and Butts and
+Acton 2011.
+}
+\details{
 Fd(x = pb exp(–αx), α >=0 scaling param
 }

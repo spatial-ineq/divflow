@@ -4,7 +4,7 @@
 \alias{sfx2sfg}
 \title{sfx2sfg}
 \usage{
-sfx2sfg(sfx, ...)
+sfx2sfg(sfx, year = 2019, ...)
 }
 \arguments{
 \item{sfx}{an sf object within bounds of which to load all flows.}

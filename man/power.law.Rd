@@ -10,5 +10,6 @@ power.law(d, pb = 1, gamma = 1, alpha = 1, ...)
 \item{d}{distance}
 }
 \description{
-power law
+One of the functional forms posited for the SIF in Daraganova 2012 and Butts and
+Acton 2011.
 }

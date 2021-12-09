@@ -14,5 +14,12 @@ bisq.dist2weights(d, cutoff = dst.ceiling, ...)
 \description{
 Uses a Bisquare transformation to turn distances to spatial weights. Transfroms by
 weight = (1-(ndist/H)^2)^2 for distances less than or equal to H, 0 otherwise.
-Mimics Bi-square option in \code{lctools::moransI}.
+Mimics Bi-square option in \code{lctools::moransI}, and I implemented because it is
+used there and elsewhere to generate spatial weights.
+}
+\details{
+In analysis I've run for these projects, this function seems to often yield
+different results from all the other possibilities in a way that makes me feel
+it's a poor choice for a distance decay function--but this would maybe change with
+different values for H.
 }

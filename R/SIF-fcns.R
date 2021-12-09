@@ -198,6 +198,9 @@ power.law.loss.fcn <- function(par, dst.freq) {
 
 #' power law
 #'
+#' One of the functional forms posited for the SIF in Daraganova 2012 and Butts and
+#' Acton 2011.
+#'
 #' @param d distance
 #'
 power.law <- function(d, pb = 1, gamma = 1, alpha = 1
@@ -208,11 +211,14 @@ power.law <- function(d, pb = 1, gamma = 1, alpha = 1
 
 #' attenuated power law
 #'
-#' "Unlike the simple power law model....the attenuated variant exhibits
-#' negative local curvature. This model thus tends to produce both a high proportion
-#' of long-range edges and a high degree of local cohesion (the scale of these
-#' effects being dependent upon α). Where (αd)γ » 1, both variants exhibit similar
-#' behavior."
+#' One of the functional forms posited for the SIF in Daraganova 2012 and Butts and
+#' Acton 2011.
+#'
+#' Notes from Daraganova 2012: "Unlike the simple power law model....the attenuated
+#' variant exhibits negative local curvature. This model thus tends to produce both a
+#' high proportion of long-range edges and a high degree of local cohesion (the scale
+#' of these effects being dependent upon α). Where (αd)γ » 1, both variants exhibit
+#' similar behavior."
 #'
 #' @inheritParams power.law
 #'
@@ -223,6 +229,9 @@ attenuated.power.law <- function(d, pb = 1, gamma = 1, alpha = 1
 
 
 #' inverse exponential decay
+#'
+#' One of the functional forms posited for the SIF in Daraganova 2012 and Butts and
+#' Acton 2011.
 #'
 #' Fd(x = pb exp(–αx), α >=0 scaling param
 #'
@@ -239,7 +248,13 @@ exponential.decay <- function(d, pb = 1, alpha = 0.5
 #'
 #' Uses a Bisquare transformation to turn distances to spatial weights. Transfroms by
 #' weight = (1-(ndist/H)^2)^2 for distances less than or equal to H, 0 otherwise.
-#' Mimics Bi-square option in `lctools::moransI`.
+#' Mimics Bi-square option in `lctools::moransI`, and I implemented because it is
+#' used there and elsewhere to generate spatial weights.
+#'
+#' In analysis I've run for these projects, this function seems to often yield
+#' different results from all the other possibilities in a way that makes me feel
+#' it's a poor choice for a distance decay function--but this would maybe change with
+#' different values for H.
 #'
 #' @inheritParams power.law
 #' @param cutoff `H` in the formula, where weight is 0.
@@ -257,9 +272,17 @@ bisq.dist2weights <- function(d
 
 #' neg.exp
 #'
-#' e^-distance. Used by Massey and Denton for the Clustering dimension of
-#' segregation. Notably they include tract where i==j and use an estimated
-#' self-distance
+#' e^-distance.
+#'
+#' Used by Massey and Denton to define a distance decay function used for various of
+#' their possible indices for Clustering dimension of segregation. Notably they
+#' include tract where i==j and use an non-zero within-tract distance in this case.
+#' They estimate d_ii (average within tract distance for tract i) to be (.6a_i)^.5
+#' "following White 1983." In contrast, this function here assumes no loops (i!=j),
+#' and does not apply a within-tract weight.
+#'
+#' I think this is a good, straightforward way to include decayed distance without
+#' worrying about parameterizing.
 #'
 #' @inheritParams power.law
 #'

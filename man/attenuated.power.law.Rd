@@ -10,9 +10,13 @@ attenuated.power.law(d, pb = 1, gamma = 1, alpha = 1, ...)
 \item{d}{distance}
 }
 \description{
-"Unlike the simple power law model....the attenuated variant exhibits
-negative local curvature. This model thus tends to produce both a high proportion
-of long-range edges and a high degree of local cohesion (the scale of these
-effects being dependent upon α). Where (αd)γ » 1, both variants exhibit similar
-behavior."
+One of the functional forms posited for the SIF in Daraganova 2012 and Butts and
+Acton 2011.
+}
+\details{
+Notes from Daraganova 2012: "Unlike the simple power law model....the attenuated
+variant exhibits negative local curvature. This model thus tends to produce both a
+high proportion of long-range edges and a high degree of local cohesion (the scale
+of these effects being dependent upon α). Where (αd)γ » 1, both variants exhibit
+similar behavior."
 }
