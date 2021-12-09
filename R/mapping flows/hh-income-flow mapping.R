@@ -14,6 +14,13 @@ devtools::load_all()
 rm(list=ls())
 
 
+# about ------------------------------------------------------------------------------
+
+#' this script looks at possibilities for mapping flows based on tract attributes, by
+#' coloring flow lines based on traveler's demographics. In particular, this one
+#' looks at income in Minneapolis area.
+
+
 # build demos table -------------------------------------------------------
 
 # preppd locally (with divseg)

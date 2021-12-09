@@ -4,7 +4,7 @@ library(tidyverse)
 library(sf)
 
 # option setting
-sf_use_s2(F)
+sf_use_s2(T)
 options(tigris_use_cache = TRUE)
 Sys.setenv("VROOM_SHOW_PROGRESS"="false")
 
@@ -32,6 +32,7 @@ bbx <- smpl$bbx[[1]]
 czsf <- geox::build.CZs(smpl$cz)
 
 devtools::load_all()
+
 trimmed.gh <-
   setup.gh.wrapper(
     cz = smpl$cz
@@ -97,6 +98,8 @@ ggmap(sttm,
 graph.map.wrapper <- function(area
                               #,save.dir =
                               ,min.flows = 10
+                              ,sttm.zoom = 11
+                              ,tie.str.drop.deciles = 5
                               ) {
 
 
@@ -111,7 +114,7 @@ graph.map.wrapper <- function(area
       ,directed = F
       ,tracts.or.groups = 'bg'
       ,min.flows = min.flows
-      ,tie.str.drop.deciles = 5
+      ,tie.str.drop.deciles = tie.str.drop.deciles
     )
 
 
@@ -166,8 +169,34 @@ map(1:nrow(trueIsolation::zoom.boxes)
     )
 
 
-visaux::ragg.wrapper()
-# directed version -------------------------------------------------------------
+
+# variations -------------------------------------------------------------------
+
+# brooklyn had too many flows
+bk <- trueIsolation::zoom.boxes %>%
+  filter(an == 'brooklyn')
+
+visaux::get.stamen.bkg(sfx = bk$bbx[[1]]
+                         ,zoom = 12) %>% ggmap()
+
+
+graph.map.wrapper(area = bk,
+                  min.flows = 15
+                  ,tie.str.drop.deciles = 6
+                  ,sttm.zoom = 11)
+
+
+
+
+
+
+
+
+
+
+# directed versions -------------------------------------------------------------
+
+# (not finished, but could be interesting to play with)
 
 bbx <- smpl$bbx[[1]]
 czsf <- geox::build.CZs(smpl$cz)

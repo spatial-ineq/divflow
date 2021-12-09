@@ -1,5 +1,5 @@
 #' My flow maps came a long way (as with .mapping big OD notes and hh-income-flow
-#' maps). But those are both done kind of manually. This script is workshopping a
+#' maps). But those are both done kind of manually. This script workshopped a
 #' workflow to send to Della or to use to crop from a given Place/centroid
 #'
 #' My strategy starting out will be:
