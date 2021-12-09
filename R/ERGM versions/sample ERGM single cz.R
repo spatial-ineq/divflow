@@ -50,7 +50,7 @@ smplc %>% mapview()
 
 # get block groups for place ---------------------------------------------------
 
-bgs <- geox::tracts.from.sf(x = st_bbox(smplc)
+bgs <- geox::nbhds.from.sf(x = st_bbox(smplc)
                             ,query.fcn = tigris::block_groups)
 bgs[3] %>% plot()
 
@@ -61,8 +61,9 @@ sbgs <- bgs %>% filter(substr(tractce,1,2) != '99')
 
 
 # subset to polygon, not bboxx
-sbgs <- xwalks::get.spatial.overlap(sbgs, smplc
-                                    ,'geoid', 'placefp')
+sbgs <- st_make_valid(sbgs)
+sbgs <- geox::get.spatial.overlap(sbgs, smplc
+                                  ,'geoid', 'placefp')
 
 # filter original census query to keep all columns
 sbgs <- bgs %>%
@@ -83,6 +84,7 @@ bounds <- bounds %>% st_transform(4326)
 devtools::load_all()
 
 # flexible function
+# (but loading safegraph always takes a minute)
 sfg <- sfx2sfg(bounds
                ,min.flows = 10
                ,tracts.or.groups = 'bg'
@@ -153,71 +155,37 @@ sttm <- visaux::get.stamen.bkg(
 
 # lonlat matrix for notes
 lonlats <- ghsf %>%
-  activate('nodes') %>%
-  as_tibble() %>%
-  st_sf() %>%
-  st_coordinates()
+  gh2coords()
 
 library(ggraph)
 
+# (note that resolution can cause the flow lines to not show up in Rstudio viewer
+# pane)
 ggmap(sttm
       , base_layer =
         ggraph(trimmed.ghsf # ghsf #
                , layout = lonlats )
         ) +
   geom_edge_density(fill = '#00D0D0') +
-  geom_edge_fan( aes( edge_alpha = tstr
+  geom_edge_link( aes( edge_alpha = tstr
                     ,edge_width = tstr)
                  ,color = '#008080'
                 ) +
   flow.map.base() +
   visaux::bbox2ggcrop(bounds)
 
+# you can save an accurate image with this function
+visaux::ragg.wrapper(fn = 'portland-flow-map'
+                     ,sv.dir = 'visuals/')
 
 # merge in n'hood level ERGM controls -------------------------------
 
 
 # to (re)generate nhood divisions ----------------------------------------------
 
+# alternate with urban arterials/ census road data
 
-
-hwys <- geox::get.NHPN(sfx = bounds #%>% st_buffer(1e4)
-                 ,dropbox.dir = ddir)
-fwhys <- divM::Fix.all.hwys(hwys
-                            ,threshold = 500
-                            ,return.gap.map = T)
-
-xnbd <- divM::gen.cross.tract.dividedness(
-  smplc
-  ,hwys
-  ,nbd.query.fcn = tigris::block_groups
-  ,region.id.colm = 'placefp'
-  ,fill.nhpn.gaps = F # this can help in some cases and not others... nhpn data is not perfect
-  ,erase.water = F
-  ,year = 2019
-)
-
-
-xnbd <- xnbd %>%
-  select(geoid, hwy.poly = poly.id)
-
-# merge in w/ nodes
-ghsf <- ghsf %>%
-  activate('nodes') %>%
-  left_join(xnbd
-            , by = c('name' = 'geoid'))
-
-# vis
-ghsf %>%
-  activate('nodes') %>%
-  as_tibble() %>% st_sf() %>% mapview(zcol = 'hwy.poly') +
-  mapview(hwys)
-
-
-
-# alternate with urban arterials/ census road data --------------------------------
-
-#' ( this would mimic Grannis 2005 definition, using census roads and filtering by
+#' (mimics Grannis 2005, using census roads and filtering by
 #' CFCC (census feature classification codes)). The census codes changed since his
 #' paper and new ones referenced here:
 #'
@@ -230,39 +198,65 @@ rds <- tigris::roads(state = unique(sbgs$statefp)
               ,county = unique(sbgs$countyfp)) %>%
   rename_with(tolower)
 
-# filter to primary & secondary roads (limited-access and arterials) and hwy ramps
+rds <- rds %>% st_transform(4326)
+rds <- st_crop(rds, smplc)
+
+# just interstates
+interstates <- rds %>%
+  filter(rttyp %in% 'I')
+
+# all primary & secondary roads (limited-access and arterials) and hwy ramps
 arterials <- rds %>%
   filter(mtfcc %in%
-           Hmisc::Cs(S1100, S1200, S1630)) %>%
-  st_transform(4326)
+           Hmisc::Cs(S1100, S1200, S1630))
 
-arterials <- st_crop(arterials, smplc)
+# call divM function
+bounds$placefp <- smplc$placefp
 
-xnbd2 <- divM::gen.cross.tract.dividedness(
-  smplc
+xnbd <- divM::gen.cross.tract.dividedness(
+  bounds
+  ,interstates
+  ,nbd.query.fcn = tigris::block_groups
+  ,region.id.colm = 'placefp'
+  ,fill.nhpn.gaps = F # this can help in some cases and not others... nhpn data is not perfect
+  ,erase.water = F
+  ,year = 2019
+) %>%
+  select(geoid, int.poly = poly.id)
+
+
+xnbd.a <- divM::gen.cross.tract.dividedness(
+  bounds
   ,arterials
   ,nbd.query.fcn = tigris::block_groups
   ,region.id.colm = 'placefp'
   ,fill.nhpn.gaps = F # this can help in some cases and not others... nhpn data is not perfect
   ,erase.water = F
   ,year = 2019
-)
-
-
-xnbd2 <- xnbd2 %>%
+) %>%
   select(geoid, arterial.poly = poly.id)
 
 # merge in w/ nodes
-ghsf <- ghsf %>%
+ghsf <-
+  ghsf %>%
   activate('nodes') %>%
-  left_join(xnbd2
+  left_join(xnbd
+            , by = c('name' = 'geoid')) %>%
+  left_join(xnbd.a
             , by = c('name' = 'geoid'))
 
 # vis
 ghsf %>%
   activate('nodes') %>%
+  as_tibble() %>% st_sf() %>% mapview(zcol = 'int.poly') +
+  mapview(interstates) +
+  mapview(bounds)
+
+ghsf %>%
+  activate('nodes') %>%
   as_tibble() %>% st_sf() %>% mapview(zcol = 'arterial.poly') +
-  mapview(arterials)
+  mapview(arterials) +
+  mapview(bounds)
 
 # can use this data to treat roads in more differentiated way too!! And census data
 # is better than NHPN, if functions accommodate the complexity well enough.
@@ -284,9 +278,10 @@ demos %>%
   select(matches('pop|^n')) %>%
   colSums() %>% format(big.mark = ',')
 
-# play with democgraphic flow visualization ------------------------------------
+# play with demographic flow visualization ------------------------------------
 
 # could be better if not undirected
+# (not finished but could be interesting to think about directed graphs)
 dghsf <- ghsf %>%
   activate('edges') %>%
   mutate(flow.n.bl =

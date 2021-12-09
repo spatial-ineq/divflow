@@ -79,7 +79,7 @@ smplc %>% mapview()
 
 # get block groups for place ---------------------------------------------------
 
-bgs <- geox::tracts.from.sf(x = st_bbox(smplc)
+bgs <- geox::nbhds.from.sf(x = st_bbox(smplc)
                             ,query.fcn = tigris::block_groups)
 bgs[3] %>% plot()
 
@@ -87,10 +87,10 @@ bgs[3] %>% plot()
 
 sbgs <- bgs %>% filter(substr(tractce,1,2) != '99')
 
-# subset to polygon, from bboxx
-sbgs <- xwalks::get.spatial.overlap(sbgs, smplc
-                                    ,'geoid', 'placefp')
-
+# subset to polygon, not bboxx
+sbgs <- st_make_valid(sbgs)
+sbgs <- geox::get.spatial.overlap(sbgs, smplc
+                                  ,'geoid', 'placefp')
 # filter original census query to keep all columns
 sbgs <- bgs %>%
   filter(geoid %in% sbgs$geoid)
