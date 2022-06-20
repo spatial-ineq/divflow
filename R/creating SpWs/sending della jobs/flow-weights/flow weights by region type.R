@@ -305,7 +305,7 @@ cbg.flwws.dellajob <-
 bg.params <-
   tibble(
     cz_id = NULL
-    ,cbsa_id = cbsas
+    ,cbsa_id = gencbsas
     ,agg2tracts = F
     ,weight.floor = 0.001
     ,drop.loops = T
