@@ -32,10 +32,11 @@ spws <- prx.dir %>%
   read_rds()
 spws <- spws %>% select(geoid, below.cutoff)
 
+czs <- geox::rx$cz %>% unique()
 
 ## tracts test run ##
 Della.wrapper_flow.weights_dst.cutoff(
-  cz = czs[2]
+  cz = czs[2] # "11001"
   ,agg2tracts = T
   ,weight.floor = 0.001
   ,drop.loops = T
