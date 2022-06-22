@@ -67,6 +67,15 @@ get.avg.adjacent <- function(i,  x
 }
 
 
+# # Test code
+# resl %>%
+#   filter(var == 'perc_hsp') %>%
+#   get.avg.adjacent(i = '34001000200'
+#                    ,x = .
+#                    , value.col = 'value'
+#                    , weight.col = 'weight'
+#                    ,nb.col = 'rook.adj.nbs'
+#                    ,spatial.weights = spws)
 
 # Della wrapper for adjacencies -------------------------------------------
 
