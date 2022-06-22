@@ -198,7 +198,7 @@ Della.wrapper_dst.composite.by.region <- function(
                        save.subdir)
 
     if(!exists(save.dir))
-      dir.create(save.dir)
+      dir.create(save.dir, recursive = T)
 
     rids <- divflow::region2identifiers( region.type = region.type
                                 ,region.id = region.id)
