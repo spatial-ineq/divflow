@@ -169,7 +169,7 @@ calc.proxim.counts <- function(cz = NULL, cbsa = NULL
 
     save.dir <- '/scratch/gpfs/km31/adjacencies+proximities/spatial-composites/composite-counts/'
 
-    if(!exists(save.dir))
+    if(!dir.exists(save.dir))
       dir.create(save.dir)
 
     rids <- geox::get.region.identifiers(cz = cz, cbsa = cbsa)
@@ -337,7 +337,7 @@ calc.adj.counts <- function(cz = NULL, cbsa = NULL
 
     save.dir <- '/scratch/gpfs/km31/adjacencies+proximities/spatial-composites/adj-composite-counts/'
 
-    if(!exists(save.dir))
+    if(!dir.exists(save.dir))
       dir.create(save.dir)
 
     rids <- geox::get.region.identifiers(cz = cz, cbsa = cbsa)

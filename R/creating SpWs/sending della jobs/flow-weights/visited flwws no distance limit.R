@@ -63,7 +63,7 @@ Della.wrapper_incoming.flww.by.cz <- function(cz
 
   if(!is.null(save.dir)) {
 
-    if(!exists(save.dir))
+    if(!dir.exists(save.dir))
       dir.create(save.dir)
 
     write.csv(flww

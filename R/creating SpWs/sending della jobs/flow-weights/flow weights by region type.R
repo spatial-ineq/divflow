@@ -90,7 +90,7 @@ Della.wrapper_flow.weights_by.rt <- function(
   #browser()
 
   if(!is.null(save.dir)) {
-    if(!exists(save.dir))
+    if(!dir.exists(save.dir))
       dir.create(save.dir, recursive = T)
 
     rids <- geox::get.region.identifiers(cz = cz_id

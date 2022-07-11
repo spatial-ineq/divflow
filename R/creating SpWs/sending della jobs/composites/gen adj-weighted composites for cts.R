@@ -145,7 +145,7 @@ Della.wrapper_adj.composite.by.region <- function(
     save.dir <- paste0(save.dir,
                        save.subdir)
 
-    if(!exists(save.dir))
+    if(!dir.exists(save.dir))
       dir.create(save.dir, recursive = T)
 
     rids <- divflow::region2identifiers( region.type = region.type

@@ -151,7 +151,7 @@ Della.wrapper_flow.composite.by.region <- function(
     save.dir <- paste0(save.dir,
                        save.subdir)
 
-    if(!exists(save.dir))
+    if(!dir.exists(save.dir))
       dir.create(save.dir)
 
     rids <- geox::add.rns(tibble(rt = region.type, rid = region.id ))
