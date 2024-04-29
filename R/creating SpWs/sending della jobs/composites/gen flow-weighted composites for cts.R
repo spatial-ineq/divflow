@@ -263,7 +263,7 @@ cztracts.flowcomposites.dellajob <-
   slurm_apply(f =
                 Della.wrapper_flow.composite.by.region,
               params = cz.ct.params,
-              jobname = 'cztracts.flowcomposites',
+              jobname = 'cztracts.flowcomposites no drop',
               nodes = 22,
               cpus_per_node = 1,
               slurm_options = list(time = '15:00:00',
@@ -281,7 +281,7 @@ cbsatracts.flowcomposites.dellajob <-
   slurm_apply(f =
                 Della.wrapper_flow.composite.by.region,
               params = cbsa.ct.params,
-              jobname = 'cbsatracts.flowcomposites',
+              jobname = 'cbsatracts.flowcomposites no drop',
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
