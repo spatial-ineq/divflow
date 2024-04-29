@@ -177,7 +177,7 @@ tract.params <-
     ,cbsa_id = NULL
     ,agg2tracts = T
     ,weight.floor = 0.000
-    ,drop.loops = F
+    ,drop.loops = T
     ,sfg.dir = sfg.dir
     ,year = '2019'
     ,save.dir = save.dir
@@ -190,7 +190,7 @@ tract.flwws.dellajob <-
   slurm_apply(f =
                 Della.wrapper_flow.weights_by.rt,
               params = tract.params,
-              jobname = 'tract flow weights by cz_no_drop',
+              jobname = 'tract flow weights by cz_no_loops',
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
@@ -208,7 +208,7 @@ tract.params.cbsas <-
     ,cbsa_id = gencbsas
     ,agg2tracts = T
     ,weight.floor = 0.000
-    ,drop.loops = F
+    ,drop.loops = T
     ,sfg.dir = sfg.dir
     ,year = '2019'
     ,save.dir = save.dir
@@ -220,7 +220,7 @@ tract.flwws.dellajob <-
   slurm_apply(f =
                 Della.wrapper_flow.weights_by.rt,
               params = tract.params.cbsas,
-              jobname = 'tract flow weights by cbsa no drop',
+              jobname = 'tract flow weights by cbsa no loops',
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
