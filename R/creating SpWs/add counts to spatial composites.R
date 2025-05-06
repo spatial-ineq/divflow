@@ -31,7 +31,7 @@ lag.dir <- paste0(ddir,
 lag.dir %>% list.files()
 
 splags <- lag.dir %>%
-  list.files(pattern = 'full-spatial-composites-by-rt.csv'
+  list.files(pattern = 'full-spatial-composites-by-cbsa-pctiles-new-include-loops.csv'
              ,full.names = T) %>%
   vroom::vroom()
 
@@ -78,7 +78,7 @@ tots <- flr %>%
 
 # also get all residential values, long by variable
 resl <- flrdir %>%
-  list.files(pattern = 'res-chars-long'
+  list.files(pattern = 'res-chars-long-pctiles-new'
              ,full.names = T) %>%
   vroom::vroom()
 
@@ -89,14 +89,16 @@ resl
 # these are easy, i just multiply %flow composite by total flows or total pop/hh
 
 # first drop vars you didn't get other counts for
-selags <- splags %>% filter(var %in%  c('perc_bl', 'perc_wh'
-                              ,'perc_hsp', 'perc_asian'
-                              ,'perc_below.pov', 'perc_above.pov'))
+selags <- splags
+# %>% filter(var %in%  c('perc_bl', 'perc_wh'
+#                               ,'perc_hsp', 'perc_asian'
+#                               ,'perc_below.pov', 'perc_above.pov'))
 
 # nas pre-join
 selags %>% map_dbl( ~sum(is.na(.x)) )
 
 ccs <- selags %>%
+  mutate(rid = geox::fix.geoid(rid, width = 5)) %>%
   left_join(tots)
 
 ccs <- ccs %>%
@@ -236,10 +238,10 @@ ccs
 prx.ccs
 adj.ccs
 
-spcounts <- purrr::reduce(list(ccs,
-                   prx.ccs,
-                   adj.ccs)
-              ,full_join)
+spcounts <- ccs # purrr::reduce(list(ccs,
+              #      prx.ccs,
+              #      adj.ccs)
+              # ,full_join)
 
 spcounts
 spcounts %>% map_dbl( ~sum(is.na(.x)) )
@@ -302,7 +304,7 @@ spcounts %>%
 
 # write final copy --------------------------------------------------------
 
-save.path <- '/scratch/gpfs/km31/adjacencies+proximities/spatial-composites/full-spatial-composite-counts-by-rt.csv'
+save.path <- '/scratch/gpfs/km31/adjacencies+proximities/spatial-composites/full-spatial-composite-counts-by-cbsa-pctiles-new-include-loops.csv'
 spcounts %>%
   write.csv(
      file = save.path
