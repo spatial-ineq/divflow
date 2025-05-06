@@ -27,7 +27,7 @@ list.files(flww.dir
 # (compiled in data-raw/)
 demo.pth <- paste0(ddir
                    ,'seg-measures/by tract/broader ineq flows/'
-                   ,'res-chars-long.csv')
+                   ,'res-chars-long-pctiles-new.csv')
 resl <- vroom::vroom(demo.pth)
 
 # sample -- generate cz/cz composite for sample area --------------------------
@@ -281,7 +281,7 @@ cbsatracts.flowcomposites.dellajob <-
   slurm_apply(f =
                 Della.wrapper_flow.composite.by.region,
               params = cbsa.ct.params,
-              jobname = 'cbsatracts.flowcomposites include loops',
+              jobname = 'cbsatracts.flowcomposites.pctiles_new include loops',
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
