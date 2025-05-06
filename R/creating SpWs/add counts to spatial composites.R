@@ -31,7 +31,7 @@ lag.dir <- paste0(ddir,
 lag.dir %>% list.files()
 
 splags <- lag.dir %>%
-  list.files(pattern = 'full-spatial-composites-by-cbsa-pctiles-new-include-loops.csv'
+  list.files(pattern = 'full-spatial-composites-by-cbsa-pctiles-new.csv'
              ,full.names = T) %>%
   vroom::vroom()
 
@@ -129,7 +129,7 @@ tots %>% filter(rid %in% missing$rid & rt == 'cbsa')
 
 # get ~just~ counts from ccs.
 ccs <- ccs %>%
-  select(geoid,rt,rid,pop,hh,var,value,weight,matches('^n\\.'))
+  select(geoid,rt,rid,pop,hh,var,value,weight,matches('^n\\.'), everything())
 
 # trim to demographic and pov vars
 ccs <- ccs %>%
@@ -304,7 +304,7 @@ spcounts %>%
 
 # write final copy --------------------------------------------------------
 
-save.path <- '/scratch/gpfs/km31/adjacencies+proximities/spatial-composites/full-spatial-composite-counts-by-cbsa-pctiles-new-include-loops.csv'
+save.path <- '/scratch/gpfs/km31/adjacencies+proximities/spatial-composites/full-spatial-composite-counts-by-cbsa-pctiles-new.csv'
 spcounts %>%
   write.csv(
      file = save.path
