@@ -17,7 +17,7 @@ ddir <- #Sys.getenv('drop_dir')
 
 # flow weights
 flww.dir <- paste0(ddir
-                   ,'/adjacencies+proximities/flow-weights/')
+                   ,'/adjacencies+proximities/flow-weights-include-loops/')
 
 list.files(flww.dir
            ,recursive = T)
@@ -85,10 +85,10 @@ get.flow.weighted.composite <- function(i, x
     nbs <- tibble(geoid = names(nbs)
                   ,dist.from.i = nbs )
 
-  # combine distances and attributes; filter out loops (where i==j)
+  # combine distances and attributes; KEEP loops in for attribute calculation (where i==j)
   js <- x[x$geoid %in% nbs$j, ] %>%
-    left_join(nbs, by = c('geoid' = 'j')) %>%
-    filter(geoid != i)
+    left_join(nbs, by = c('geoid' = 'j'))
+  # %>% filter(geoid != i)
 
   # for flow weight, only use flww, and not population or hhs
   spu <- stats::weighted.mean( js$value
@@ -247,11 +247,11 @@ cbsa.ct.params <-
           #Sys.getenv('drop_dir')
           ,save.dir =
             paste0(ddir
-                   ,'adjacencies+proximities/spatial-composites/flow-composites/')
+                   ,'adjacencies+proximities/spatial-composites-pctiles-new-include-loops/flow-composites/')
           ,save.subdir = 'tracts/'
           ,flww.base.dir =
             paste0(ddir
-                   ,'adjacencies+proximities/flow-weights/')
+                   ,'adjacencies+proximities/flow-weights-include-loops/')
           ,flww.subdir = 'cts-by-region/')
 
 
@@ -281,7 +281,7 @@ cbsatracts.flowcomposites.dellajob <-
   slurm_apply(f =
                 Della.wrapper_flow.composite.by.region,
               params = cbsa.ct.params,
-              jobname = 'cbsatracts.flowcomposites.pctiles_new include loops',
+              jobname = 'cbsatracts.flowcomposites.pctiles_new include loops correct',
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
