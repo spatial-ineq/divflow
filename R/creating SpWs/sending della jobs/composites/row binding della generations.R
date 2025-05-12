@@ -8,7 +8,7 @@ require(tidyverse)
 basedir <- '/scratch/gpfs/km31/'
 
 cdir <- paste0(basedir
-               ,'/adjacencies+proximities/spatial-composites/')
+               ,'/adjacencies+proximities/spatial-composites-include-loops/')
 
 composite.dirs <-
   list.dirs(cdir

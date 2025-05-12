@@ -27,7 +27,7 @@ list.files(flww.dir
 # (compiled in data-raw/)
 demo.pth <- paste0(ddir
                    ,'seg-measures/by tract/broader ineq flows/'
-                   ,'res-chars-long-pctiles-new.csv')
+                   ,'res-chars-long.csv')
 resl <- vroom::vroom(demo.pth)
 
 # sample -- generate cz/cz composite for sample area --------------------------
@@ -231,11 +231,11 @@ cz.ct.params <-
           #Sys.getenv('drop_dir')
           ,save.dir =
             paste0(ddir
-                   ,'adjacencies+proximities/spatial-composites/flow-composites/')
+                   ,'adjacencies+proximities/spatial-composites-include-loops/flow-composites/')
           ,save.subdir = 'tracts/'
           ,flww.base.dir =
             paste0(ddir
-                   ,'adjacencies+proximities/flow-weights/')
+                   ,'adjacencies+proximities/flow-weights-include-loops/')
           ,flww.subdir = 'cts-by-region/')
 
 
@@ -247,7 +247,7 @@ cbsa.ct.params <-
           #Sys.getenv('drop_dir')
           ,save.dir =
             paste0(ddir
-                   ,'adjacencies+proximities/spatial-composites-pctiles-new-include-loops/flow-composites/')
+                   ,'adjacencies+proximities/spatial-composites-include-loops/flow-composites/')
           ,save.subdir = 'tracts/'
           ,flww.base.dir =
             paste0(ddir
@@ -263,7 +263,7 @@ cztracts.flowcomposites.dellajob <-
   slurm_apply(f =
                 Della.wrapper_flow.composite.by.region,
               params = cz.ct.params,
-              jobname = 'cztracts.flowcomposites include loops',
+              jobname = 'cztracts.flowcomposites include loops correct',
               nodes = 22,
               cpus_per_node = 1,
               slurm_options = list(time = '15:00:00',
@@ -281,7 +281,7 @@ cbsatracts.flowcomposites.dellajob <-
   slurm_apply(f =
                 Della.wrapper_flow.composite.by.region,
               params = cbsa.ct.params,
-              jobname = 'cbsatracts.flowcomposites.pctiles_new include loops correct',
+              jobname = 'cbsatracts.flowcomposites include loops correct',
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
