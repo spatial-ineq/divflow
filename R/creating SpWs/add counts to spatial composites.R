@@ -27,11 +27,11 @@ ddir <- # Sys.getenv('drop_dir')
 
 # get flow composites
 lag.dir <- paste0(ddir,
-                  'adjacencies+proximities/spatial-composites-pctiles-new-include-loops/' )
+                  'adjacencies+proximities/spatial-composites-include-loops/' )
 lag.dir %>% list.files()
 
 splags <- lag.dir %>%
-  list.files(pattern = 'full-spatial-composites-by-cbsa-pctiles-new-include-loops.csv'
+  list.files(pattern = 'full-spatial-composites-by-cbsa-include-loops.csv'
              ,full.names = T) %>%
   vroom::vroom()
 
@@ -78,7 +78,7 @@ tots <- flr %>%
 
 # also get all residential values, long by variable
 resl <- flrdir %>%
-  list.files(pattern = 'res-chars-long-pctiles-new'
+  list.files(pattern = 'res-chars-long.csv'
              ,full.names = T) %>%
   vroom::vroom()
 
@@ -304,7 +304,7 @@ spcounts %>%
 
 # write final copy --------------------------------------------------------
 
-save.path <- '/scratch/gpfs/km31/adjacencies+proximities/spatial-composites-pctiles-new-include-loops/full-spatial-composite-counts-by-cbsa-pctiles-new-include-loops.csv'
+save.path <- '/scratch/gpfs/km31/adjacencies+proximities/spatial-composites-include-loops/full-spatial-composite-counts-by-cbsa-include-loops.csv'
 spcounts %>%
   write.csv(
      file = save.path
