@@ -8,7 +8,7 @@ require(tidyverse)
 basedir <- '/scratch/gpfs/km31/'
 
 cdir <- paste0(basedir
-               ,'/adjacencies+proximities/spatial-composites-include-loops/')
+               ,'/adjacencies+proximities/spatial-composites-wfam/')
 
 composite.dirs <-
   list.dirs(cdir
@@ -85,7 +85,7 @@ spcbsa <- spcbsa %>% purrr::reduce(full_join)
 spcs <- rbind(spcz
       ,spcbsa)
 
-spcs
+spcs <- spcbsa
 
 
 # checks ------------------------------------------------------------------
@@ -114,7 +114,7 @@ spcs %>%
 
 write.csv(spcs,
           file = paste0(cdir
-                        ,'full-spatial-composites-by-rt.csv'
+                        ,'full-spatial-composites-by-cbsa-pctiles-wfam.csv'
                         )
           ,row.names = F)
 
