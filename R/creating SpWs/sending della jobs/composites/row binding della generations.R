@@ -114,7 +114,7 @@ spcs %>%
 
 write.csv(spcs,
           file = paste0(cdir
-                        ,'full-spatial-composites-by-cbsa-pctiles-urbsub.csv'
+                        ,'full-spatial-composites-by-cbsa-urbsub.csv'
                         )
           ,row.names = F)
 
