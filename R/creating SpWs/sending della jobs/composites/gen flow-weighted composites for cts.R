@@ -27,7 +27,7 @@ list.files(flww.dir
 # (compiled in data-raw/)
 demo.pth <- paste0(ddir
                    ,'seg-measures/by tract/broader ineq flows/'
-                   ,'res-chars-long-pctiles-wfam.csv')
+                   ,'res-chars-long-urbsub.csv')
 resl <- vroom::vroom(demo.pth)
 
 # sample -- generate cz/cz composite for sample area --------------------------
@@ -247,7 +247,7 @@ cbsa.ct.params <-
           #Sys.getenv('drop_dir')
           ,save.dir =
             paste0(ddir
-                   ,'adjacencies+proximities/spatial-composites-wfam/flow-composites/')
+                   ,'adjacencies+proximities/spatial-composites-urbsub/flow-composites/')
           ,save.subdir = 'tracts/'
           ,flww.base.dir =
             paste0(ddir
@@ -281,7 +281,7 @@ cbsatracts.flowcomposites.dellajob <-
   slurm_apply(f =
                 Della.wrapper_flow.composite.by.region,
               params = cbsa.ct.params,
-              jobname = 'cbsatracts.flowcomposites wfam',
+              jobname = 'cbsatracts.flowcomposites urbsub',
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
