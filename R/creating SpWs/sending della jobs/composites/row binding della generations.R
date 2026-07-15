@@ -8,7 +8,7 @@ require(tidyverse)
 basedir <- '/scratch/gpfs/km31/'
 
 cdir <- paste0(basedir
-               ,'/adjacencies+proximities/spatial-composites-nanda/')
+               ,'/adjacencies+proximities/spatial-composites-povwh/')
 
 composite.dirs <-
   list.dirs(cdir
@@ -114,7 +114,7 @@ spcs %>%
 
 write.csv(spcs,
           file = paste0(cdir
-                        ,'full-spatial-composites-by-cbsa-nanda.csv'
+                        ,'full-spatial-composites-by-cbsa-povwh.csv'
                         )
           ,row.names = F)
 
