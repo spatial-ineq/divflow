@@ -247,7 +247,7 @@ cbsa.ct.params <-
           #Sys.getenv('drop_dir')
           ,save.dir =
             paste0(ddir
-                   ,'adjacencies+proximities/spatial-composites-nanda/flow-composites/')
+                   ,'adjacencies+proximities/spatial-composites-povwh-corrected/flow-composites/')
           ,save.subdir = 'tracts/'
           ,flww.base.dir =
             paste0(ddir
@@ -281,7 +281,7 @@ cbsatracts.flowcomposites.dellajob <-
   slurm_apply(f =
                 Della.wrapper_flow.composite.by.region,
               params = cbsa.ct.params,
-              jobname = 'cbsatracts.flowcomposites povwh',
+              jobname = 'cbsatracts.flowcomposites povwh corrected',
               nodes = 19,
               cpus_per_node = 1,
               slurm_options = list(time = '10:00:00',
